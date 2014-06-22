@@ -1,5 +1,5 @@
 # voom_mode_python.py
-# Last Modified: 2013-11-01
+# Last Modified: 2014-04-13
 # VOoM -- Vim two-pane outliner, plugin for Python-enabled Vim 7.x
 # Website: http://www.vim.org/scripts/script.php?script_id=2657
 # Author: Vlad Irnov (vlad DOT irnov AT gmail DOT com)
@@ -36,18 +36,24 @@ def hook_makeOutline(VO, blines):
             vim.command("call voom#ErrorMsg('%s')" %ln)
         return (['= |!!!ERROR: OUTLINE IS INVALID'], [1], [1])
 
-    gotHead = False # True if current line is a headline
+    isHead = False # True if current line is a headline
     indents = [0,] # indents of previous levels
     funcLevels = [] # levels of previous def or class
     indentError = '' # inconsistent indent
-    inDec = 0 # keeps track of decorators, set to lnum of the first decorator
+    isDecor = 0 # keeps track of decorators, set to lnum of the first decorator
     X = ' ' # char in Tree's column 2 (marks)
     for i in xrange(Z):
-        l = i+1
-        if l in ignore_lnums: continue
+        bnode = i + 1
+        if bnode in ignore_lnums: continue
         bline = blines[i]
         bline_s = bline.strip()
         if not bline_s: continue
+        if bline_s.startswith('#'):
+            # ignore comment lines consisting only of #, -, =, spaces, tabs (separators, pretty headers)
+            if not bline_s.lstrip('# \t-='): continue
+            isComment = True
+        else:
+            isComment = False
         bline_ls = bline.lstrip()
 
         # compute indent and level
@@ -63,46 +69,59 @@ def hook_makeOutline(VO, blines):
                 indentError = '!!! '
         lev = len(indents)
 
-        # first line after the end of a class or def block
+        # First line after the end of a class or def block.
         if funcLevels and lev <= funcLevels[-1]:
-            gotHead = True
+            isHead = True
             while funcLevels and funcLevels[-1] >= lev:
                 funcLevels.pop()
-        # first line of a class or def block
-        if l in func_lnums:
-            gotHead = True
-            if inDec:
-                l = inDec
-                inDec = 0
+        # First line of a class or def block.
+        if bnode in func_lnums:
+            isHead = True
+            if isDecor:
+                bnode = isDecor
+                isDecor = 0
                 X = 'd'
             if not funcLevels or (lev > funcLevels[-1]):
                 funcLevels.append(lev)
-        # line after a decorator, not a def or class
-        elif inDec:
+        # Line after a decorator. Not a def or class.
+        elif isDecor:
             # ingore valid lines between the first decorator and function/class
-            if bline_s.startswith('@') or bline_s.startswith('#') or not bline_s:
-                gotHead = False
+            if bline_s.startswith('@') or isComment or not bline_s:
+                isHead = False
                 continue
             # Invalid line after a decorator (should be syntax error): anything
             # other than another decorator, comment, blank line, def/class.
             # If it looks like a headline, let it be a headline.
             else:
-                inDec = 0
-        # decorator (the first one if a group of several)
+                isDecor = 0
+        # Decorator line (the first one if a group of several).
         elif bline_s.startswith('@'):
-            inDec = l
-            gotHead = False
+            isDecor = bnode
+            isHead = False
             continue
-        # special comment line (unconditional headline)
-        elif bline_s.startswith('### ') or bline_s.startswith('#---'):
-            gotHead = True
+        # Special comment line (unconditional headline). Not a separator or pretty header line.
+        elif isComment:
+            if bline_s.startswith('###') or bline_s.startswith('#--') or bline_s.startswith('#=='):
+                isHead = True
 
-        if gotHead:
-            gotHead = False
+        if isHead:
+            ##########################################
+            # Take care of pretty headers like this. #
+            ##########################################
+            if isComment:
+                # add preceding lines to the current node if they consist only of #, =, -, whitespace
+                while bnode > 1:
+                    bline_p = blines[bnode-2].lstrip()
+                    if not bline_p.startswith('#') or bline_p.lstrip('# \t-='):
+                        break
+                    else:
+                        bnode -= 1
+            # the end
+            isHead = False
             tline = ' %s%s|%s%s' %(X, '. '*(lev-1), indentError, bline_s)
             X = ' '
             tlines_add(tline)
-            bnodes_add(l)
+            bnodes_add(bnode)
             levels_add(lev)
 
     return (tlines, bnodes, levels)

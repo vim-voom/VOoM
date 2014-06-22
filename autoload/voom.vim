@@ -1,6 +1,6 @@
 " voom.vim
-" Last Modified: 2013-11-19
-" Version: 5.0
+" Last Modified: 2014-05-28
+" Version: 5.1
 " VOoM -- Vim two-pane outliner, plugin for Python-enabled Vim 7.x
 " Website: http://www.vim.org/scripts/script.php?script_id=2657
 " Author: Vlad Irnov (vlad DOT irnov AT gmail DOT com)
@@ -25,7 +25,7 @@
 " bline(s)  --Body line(s)
 " snLn      --selected node line number, a Tree line number
 " var_      --previous value of var
-" l:var     --this var is set by Python code (l:blnShow)
+" l:var     --this var is set or may be changed by Python code (l:blnShow)
 " z, Z      --list siZe, usually len(bnodes)
 
 
@@ -52,7 +52,7 @@ if not vim.eval("s:voom_dir") in sys.path:
 import voom_vim as _VOoM
 sys.modules['voom_vim'].VOOMS = {}
 EOF
-    let s:voom_did_init = 'v5.0'
+    let s:voom_did_init = 'v5.1'
 endif
 
 
@@ -1762,7 +1762,6 @@ func! voom#OopPaste() "{{{3
     endif
 
     let lz_ = &lz | set lz
-    let b_tick = s:voom_bodies[body].tick
     if voom#ToBody(body) < 0 | let &lz=lz_ | return | endif
     if voom#BodyCheckTicks(body) < 0 | let &lz=lz_ | return | endif
     " default bnlShow -1 means pasting not possible
@@ -1781,9 +1780,7 @@ func! voom#OopPaste() "{{{3
         endif
     endif
     let &lz=lz_
-    if b_tick != s:voom_bodies[body].tick
-        call voom#OopVerify(body, tree, 'paste')
-    endif
+    call voom#OopVerify(body, tree, 'paste')
 endfunc
 
 
@@ -1823,7 +1820,6 @@ func! voom#OopMark(op, mode) "{{{3
 
     let lz_ = &lz | set lz
     let t_fdm = &fdm
-    let b_tick = s:voom_bodies[body].tick
     if voom#ToBody(body) < 0 | let &lz=lz_ | return | endif
     if voom#BodyCheckTicks(body) < 0 | let &lz=lz_ | return | endif
 
@@ -1840,9 +1836,7 @@ func! voom#OopMark(op, mode) "{{{3
     call setbufvar(tree, '&ma', 0)
     let &fdm=t_fdm
     let &lz=lz_
-    if b_tick != s:voom_bodies[body].tick
-        call voom#OopVerify(body, tree, a:op)
-    endif
+    call voom#OopVerify(body, tree, a:op)
 endfunc
 
 
@@ -1864,7 +1858,6 @@ func! voom#OopMarkStartup() "{{{3
     endif
 
     let lz_ = &lz | set lz
-    let b_tick = s:voom_bodies[body].tick
     if voom#ToBody(body) < 0 | let &lz=lz_ | return | endif
     if voom#BodyCheckTicks(body) < 0 | let &lz=lz_ | return | endif
 
@@ -1874,9 +1867,7 @@ func! voom#OopMarkStartup() "{{{3
     call setbufvar(tree, '&ma', 0)
 
     let &lz=lz_
-    if b_tick != s:voom_bodies[body].tick
-        call voom#OopVerify(body, tree, 'markStartup')
-    endif
+    call voom#OopVerify(body, tree, 'markStartup')
 endfunc
 
 
@@ -1916,7 +1907,7 @@ func! voom#Oop(op, mode) "{{{3
     " }}}
 
     let lz_ = &lz | set lz
-    let b_tick = s:voom_bodies[body].tick
+    let l:doverif = 1
     " default bnlShow -1 means no changes were made or Python code failed
     let l:blnShow = -1
 
@@ -2024,8 +2015,10 @@ func! voom#Oop(op, mode) "{{{3
         keepj python _VOoM.voom_OopCut()
         call setbufvar(tree, '&ma', 0)
 
-        let s:voom_bodies[body].snLn = lnUp1
-        call cursor(0,stridx(getline('.'),'|')+1)
+        if l:blnShow > 0
+            let s:voom_bodies[body].snLn = lnUp1
+            call cursor(0,stridx(getline('.'),'|')+1)
+        endif
         " }}}
 
     elseif a:op==#'copy' " {{{
@@ -2036,11 +2029,12 @@ func! voom#Oop(op, mode) "{{{3
             call voom#OopFromBody(body,tree,-1)
         endif
         python _VOoM.voom_OopCopy()
+        let l:doverif = 0
         "}}}
     endif
 
     let &lz=lz_
-    if b_tick != s:voom_bodies[body].tick
+    if l:doverif
         call voom#OopVerify(body, tree, a:op)
     endif
 endfunc
@@ -2074,7 +2068,6 @@ func! voom#OopFolding(ln1, ln2, action) "{{{3
         call voom#OopFromBody(body,tree,-1)
     endif
 
-    let b_tick = s:voom_bodies[body].tick
     """ diddle with folds
     let winsave_dict = winsaveview()
     python _VOoM.voom_OopFolding(vim.eval('a:action'))
@@ -2088,9 +2081,7 @@ func! voom#OopFolding(ln1, ln2, action) "{{{3
     call voom#OopFromBody(body,tree,-1)
     call setbufvar(tree, '&ma', 0)
     let &lz=lz_
-    if b_tick != s:voom_bodies[body].tick
-        call voom#OopVerify(body, tree, a:action.' folding marks')
-    endif
+    call voom#OopVerify(body, tree, a:action.' folding marks')
 endfunc
 
 func! voom#OopSort(ln1,ln2,qargs) "{{{3
@@ -2224,7 +2215,7 @@ endfunc
 
 
 func! voom#OopVerify(body, tree, op) "{{{3
-" Verify outline after outline operation. Current buffer is Tree.
+" Verify outline after outline operation. Current buffer must be Tree.
     if s:verify
         let s:verify = 0
     elseif !g:voom_verify_oop
@@ -2418,7 +2409,7 @@ endfunc
 func! voom#Grep(input) "{{{2
 " Seach Body for pattern(s). Show list of UNLs of nodes with matches.
 " Input can have several patterns separated by boolean 'AND' and 'NOT'.
-" Stop each search after 10000 matches.
+" Stop if >500000 matches found for a pattern.
 " Set "/ register to AND patterns.
 
     """ Process input first in case we are in Tree and want word under cursor.
@@ -2454,7 +2445,7 @@ func! voom#Grep(input) "{{{2
     endif
 
     """ Search for each pattern with search().
-    let [lnum,cnum] = [line('.'), col('.')]
+    let [lnum_,cnum_] = [line('.'), col('.')]
     let lz_ = &lz | set lz
     let winsave_dict = winsaveview()
     " search results: list of lists with blnums for each pattern
@@ -2470,9 +2461,11 @@ func! voom#Grep(input) "{{{2
             call add(inhAND, 0)
         endif
         call add(pattsAND1, patt)
-        let matches = voom#GrepSearch(patt)
-        if matches==[0]
-            call voom#ErrorMsg('VOoM (Voomgrep): pattern not found: '.patt)
+        let [matches, notOK] = voom#GrepSearch(patt)
+        if notOK
+            if notOK == 1
+                call voom#ErrorMsg('VOoM (Voomgrep): pattern not found: '. patt)
+            endif
             call winrestview(winsave_dict)
             call winline()
             let &lz=lz_
@@ -2487,7 +2480,14 @@ func! voom#Grep(input) "{{{2
         else
             call add(inhNOT, 0)
         endif
-        call add(matchesNOT, voom#GrepSearch(patt))
+        let [matches, notOK] = voom#GrepSearch(patt)
+        if notOK > 1
+            call winrestview(winsave_dict)
+            call winline()
+            let &lz=lz_
+            return
+        endif
+        call add(matchesNOT, matches)
     endfor
     call winrestview(winsave_dict)
     call winline()
@@ -2511,20 +2511,21 @@ func! voom#Grep(input) "{{{2
     """ Set and display quickfix list.
     let [line1] = getbufline(tree,1)
     " 2nd line shows patterns and numbers of matches
-    let line2 = ''
+    let line2 = ':Voomgrep'
     for i in range(lenAND)
         let L = matchesAND[i]
-        let line2 = i==0 ? line2.pattsAND[i].' {' : line2.'AND '.pattsAND[i].' {'
-        let line2 = L[-1]==0 ? line2. (len(L)-1) .' matches}  ' : line2.'>10000 matches}  '
+        if i == 0
+            let line2 = line2 .    '  '. pattsAND[i] .' {'. len(L) .' matches}'
+        else
+            let line2 = line2 .'  AND '. pattsAND[i] .' {'. len(L) .' matches}'
+        endif
     endfor
     for i in range(lenNOT)
         let L = matchesNOT[i]
-        let line2 = line2.'NOT '.pattsNOT[i].' {'
-        let line2 = L[-1]==0 ? line2. (len(L)-1) .' matches}  ' : line2.'>10000 matches}  '
+        let line2 = line2 .'  NOT '. pattsNOT[i] .' {'. len(L) .' matches}'
     endfor
-    let line2 = ':Voomgrep '.line2
     " initiate quickfix list with two lines
-    call setqflist([{'text':line1, 'bufnr':body, 'lnum':lnum, 'col':cnum}, {'text':line2}])
+    call setqflist([{'text':line1, 'bufnr':body, 'lnum':lnum_, 'col':cnum_}, {'text':line2}])
 
     python _VOoM.voom_Grep()
 
@@ -2577,26 +2578,38 @@ endfunc
 
 
 func! voom#GrepSearch(pattern) "{{{2
-" Seach buffer for pattern. Return [lnums of matching lines].
-" Stop search after first 10000 matches.
-    let matches = []
+" Seach buffer for pattern. Return [[lnums-of-matches], notOK] .
+" notOK is 0 (success), 1 (no matches), 2 (search stopped after >500000 matches found).
+    let [matches, notOK, n] = [[], 0, 0]
     " always search from start
     keepj normal! gg0
     " special effort needed to detect match at cursor
-    if searchpos(a:pattern, 'nc')==[1,1]
+    if searchpos(a:pattern, 'nc', 1) == [1,1]
         call add(matches,1)
+        let n += 1
     endif
     " do search
-    let found = 1
-    while found>0 && len(matches)<10000
+    try 
         let found = search(a:pattern, 'W')
-        call add(matches, found)
-    endwhile
-    " search was terminated after 10000 matches were found
-    if matches[-1]!=0
-        call add(matches,-1)
+        while found > 0
+            call add(matches, found)
+            let n += 1
+            if n > 500000
+                call voom#ErrorMsg('VOoM (Voomgrep): too many matches (>500000) for pattern: '. a:pattern)
+                return [[], 2]
+            endif
+            let found = search(a:pattern, 'W')
+        endwhile
+    catch /^Vim:Interrupt$/
+        " FIXME this message is not visible, it is overwritten by Vim's CTRL-C message
+        call voom#ErrorMsg("VOoM (Voomgrep): search interrupted after ". n ." matches found for pattern: " .a:pattern)
+        return [[], 4]
+    endtry
+    " no matches found
+    if matches == []
+        let notOK = 1
     endif
-    return matches
+    return [matches, notOK]
 endfunc
 
 

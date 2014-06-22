@@ -1,5 +1,5 @@
 # voom_mode_viki.py
-# Last Modified: 2013-10-31
+# Last Modified: 2014-04-09
 # VOoM -- Vim two-pane outliner, plugin for Python-enabled Vim 7.x
 # Website: http://www.vim.org/scripts/script.php?script_id=2657
 # Author: Vlad Irnov (vlad DOT irnov AT gmail DOT com)
@@ -38,19 +38,19 @@ def hook_makeOutline(VO, blines):
     Z = len(blines)
     tlines, bnodes, levels = [], [], []
     tlines_add, bnodes_add, levels_add = tlines.append, bnodes.append, levels.append
-    inRegion = False #  EndOfRegion match object when inside a region
+    isFenced = False # EndOfRegion match object when inside a region
     for i in xrange(Z):
         bline = blines[i]
 
-        if inRegion:
-            if re.match(inRegion, bline):
-                inRegion = False
+        if isFenced:
+            if re.match(isFenced, bline):
+                isFenced = False
             continue
 
         if bline.lstrip().startswith('#') and '<<' in bline:
             r_m = region_match(bline)
             if r_m and r_m.group(1) != 'Region':
-                inRegion = '^\s*%s\s*$' %re.escape(r_m.group(3) or '')
+                isFenced = '^\s*%s\s*$' %re.escape(r_m.group(3) or '')
                 continue
         elif not bline.startswith('*'):
             continue

@@ -1,5 +1,5 @@
 # voom_mode_txt2tags.py
-# Last Modified: 2013-10-31
+# Last Modified: 2014-04-09
 # VOoM -- Vim two-pane outliner, plugin for Python-enabled Vim 7.x
 # Website: http://www.vim.org/scripts/script.php?script_id=2657
 # Author: Vlad Irnov (vlad DOT irnov AT gmail DOT com)
@@ -31,20 +31,20 @@ def hook_makeOutline(VO, blines):
     tlines_add, bnodes_add, levels_add = tlines.append, bnodes.append, levels.append
 
     # tags between which headlines should be ignored: Verbatim/Raw/Tagged/Comment Areas
-    areaTags = {'```' : 1, '"""' : 2, "'''" : 3, '%%%' : 4}
-    inArea = '' # set to Area tag when in an ignored Area
+    fenceTags = {'```' : 1, '"""' : 2, "'''" : 3, '%%%' : 4}
+    isFenced = '' # set to Area tag when in an ignored Area
     for i in xrange(Z):
         bline = blines[i]
 
         # ignore Verbatim/Raw/Tagged/Comment Areas
         bline_rs = bline.rstrip() # tests show rstrip() is needed for these tags
-        if bline_rs in areaTags:
-            if not inArea:
-                inArea = bline_rs
-            elif inArea==bline_rs:
-                inArea = ''
+        if bline_rs in fenceTags:
+            if not isFenced:
+                isFenced = bline_rs
+            elif isFenced==bline_rs:
+                isFenced = ''
             continue
-        if inArea: continue
+        if isFenced: continue
 
         # there can be leading spaces but not tabs
         bline = bline.lstrip(' ')

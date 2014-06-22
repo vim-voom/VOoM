@@ -1,5 +1,5 @@
 # voom_mode_latex.py
-# Last Modified: 2013-11-01
+# Last Modified: 2014-04-09
 # VOoM -- Vim two-pane outliner, plugin for Python-enabled Vim 7.x
 # Website: http://www.vim.org/scripts/script.php?script_id=2657
 # Author: Vlad Irnov (vlad DOT irnov AT gmail DOT com)
@@ -101,7 +101,7 @@ def hook_makeOutline(VO, blines):
 
     sects_levs = {} # {section: its default level} for all section found in the buffer
     inVerbatim = False
-    gotHead = False
+    isHead = False
     mark = ' ' # * or -
     for i in xrange(Z):
         L = blines[i].lstrip()
@@ -120,7 +120,7 @@ def hook_makeOutline(VO, blines):
         # check for sections
         m = SECTS_RE(L)
         if m:
-            gotHead = True
+            isHead = True
             s = '\\' + m.group(1)
             lev = SECTS_LEVS[s]
             sects_levs[s] = lev
@@ -139,13 +139,13 @@ def hook_makeOutline(VO, blines):
         elif ELEMS_RE:
             m = ELEMS_RE(L)
             if m:
-                gotHead = True
+                isHead = True
                 lev = 1
                 head = L.rstrip()
                 mark = '-'
         # add node to outline
-        if gotHead:
-            gotHead = False
+        if isHead:
+            isHead = False
             bnodes_add(i+1)
             levels_add(lev)
             # tlines must be constructed from marks and heads and after levels are adjusted

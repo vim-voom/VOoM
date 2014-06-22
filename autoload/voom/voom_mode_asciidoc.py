@@ -1,5 +1,5 @@
 # voom_mode_asciidoc.py
-# Last Modified: 2013-10-31
+# Last Modified: 2014-05-21
 # VOoM -- Vim two-pane outliner, plugin for Python-enabled Vim 7.x
 # Website: http://www.vim.org/scripts/script.php?script_id=2657
 # Author: Vlad Irnov (vlad DOT irnov AT gmail DOT com)
@@ -31,24 +31,27 @@ except ImportError:
     DO_BLANKS = True
 
 import re
+
 # regex for 1-style headline, assumes there is no trailing whitespace
 HEAD_MATCH = re.compile(r'^(=+)(\s+\S.*?)(\s+\1)?$').match
 
-# underline chars
-ADS_LEVELS = {'=':1, '-':2, '~':3, '^':4, '+':5}
-LEVELS_ADS = {1:'=', 2:'-', 3:'~', 4:'^', 5:'+'}
+#---------------------------------------------------------------------
+# Characters used as underlines in two-line headlines.
+ADS_LEVELS = {'=' : 1, '-' : 2, '~' : 3, '^' : 4, '+' : 5}
+# Characters for Delimited Blocks. Headines are ignored inside such blocks.
+BLOCK_CHARS = {'/' : 0, '+' : 0, '-' : 0, '.' : 0, '*' : 0, '_' : 0, '=' : 0}
 
-# DelimitedBlock chars, headines are ignored inside such blocks
-BLOCK_CHARS = {'/':0, '+':0, '-':0, '.':0, '*':0, '_':0, '=':0}
-
-# Combine all signficant chars. Need one of these at start of line for a
-# headline or DelimitedBlock to occur.
+#LEVELS_ADS = {1:'=', 2:'-', 3:'~', 4:'^', 5:'+'}
+LEVELS_ADS = {}
+for k in ADS_LEVELS:
+    LEVELS_ADS[ADS_LEVELS[k]] = k
+# Combine all signficant chars. Need one of these at start of line for a headline or DelimitedBlock to occur.
 CHARS = {}
 for k in ADS_LEVELS:
     CHARS[k] = 0
 for k in BLOCK_CHARS:
     CHARS[k] = 0
-
+#---------------------------------------------------------------------
 
 def hook_makeOutline(VO, blines):
     """Return (tlines, bnodes, levels) for Body lines blines.
@@ -81,8 +84,8 @@ def hook_makeOutline(VO, blines):
     # 0 or 1 -- True, use closing ='s (default); 2 -- False, do not use closing ='s
     useOneClose = 0
 
-    gotHead = False
-    inBlock = False # True if inside DelimitedBlock, the value is the char
+    isHead = False
+    isFenced = False # True if inside DelimitedBlock, the value is the char
     headI = -2 # idx of the last line that is part of a headline
     blockI = -2 # idx of the last line where a DelimitedBlock ended
     m = None # match object for 1-style regex
@@ -93,9 +96,9 @@ def hook_makeOutline(VO, blines):
             continue
         ch = L1[0]
 
-        if inBlock:
-            if inBlock==ch and len(L1)>3 and L1.lstrip(ch)=='':
-                inBlock = False
+        if isFenced:
+            if isFenced==ch and len(L1)>3 and L1.lstrip(ch)=='':
+                isFenced = False
                 blockI = i
             continue
 
@@ -103,7 +106,7 @@ def hook_makeOutline(VO, blines):
         if ch == '=' and L1.strip('='):
             m = HEAD_MATCH(L1)
             if m:
-                gotHead = True
+                isHead = True
                 headI_ = headI
                 headI = i
                 lev = len(m.group(1))
@@ -120,7 +123,7 @@ def hook_makeOutline(VO, blines):
         #   starts with // (comment line)
         #   starts with tab (don't know why, spaces are ok)
         #   is only 1 chars (avoids confusion with --, as in Vim syntax, not as in AsciiDoc)
-        if not gotHead and ch in ADS_LEVELS and L1.lstrip(ch)=='' and i > 0:
+        if not isHead and ch in ADS_LEVELS and L1.lstrip(ch)=='' and i > 0:
             L2 = blines[i-1].rstrip()
             z2 = len(L2.decode(ENC,'replace'))
             z1 = len(L1)
@@ -133,14 +136,14 @@ def hook_makeOutline(VO, blines):
                   not L2.startswith('\t') and
                   not (L2.startswith('//') and not L2.startswith('///'))
                   ):
-                gotHead = True
+                isHead = True
                 headI_ = headI
                 headI = i
                 lev = ADS_LEVELS[ch]
                 head = L2.strip()
                 bnode = i # lnum of previous line (L2)
 
-        if gotHead and bnode > 1:
+        if isHead and bnode > 1:
             # decrement bnode if preceding lines are [[AAA]] or [AAA] lines
             # that is set bnode to the topmost [[AAA]] or [AAA] line number
             j_ = bnode-2 # idx of line before the title line
@@ -169,16 +172,16 @@ def hook_makeOutline(VO, blines):
                         else:
                             L3 = ''
                     if L3 and headI_ != j and blockI != j:
-                        gotHead = False
+                        isHead = False
                         headI = headI_
 
         # start of DelimitedBlock
-        if not gotHead and ch in BLOCK_CHARS and len(L1)>3 and L1.lstrip(ch)=='':
-            inBlock = ch
+        if not isHead and ch in BLOCK_CHARS and len(L1)>3 and L1.lstrip(ch)=='':
+            isFenced = ch
             continue
 
-        if gotHead:
-            gotHead = False
+        if isHead:
+            isHead = False
             # save style info for first headline and first 1-style headline
             if not useOne and lev < 6:
                 if m:

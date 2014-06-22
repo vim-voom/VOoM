@@ -1,6 +1,6 @@
 " voom.vim
-" Last Modified: 2013-11-12
-" Version: 5.0
+" Last Modified: 2014-05-28
+" Version: 5.1
 " VOoM -- Vim two-pane outliner, plugin for Python-enabled Vim 7.x
 " Website: http://www.vim.org/scripts/script.php?script_id=2657
 " Author: Vlad Irnov (vlad DOT irnov AT gmail DOT com)
@@ -9,7 +9,7 @@
 if exists('g:voom_did_load_plugin')
   finish
 endif
-let g:voom_did_load_plugin = 'v5.0'
+let g:voom_did_load_plugin = 'v5.1'
 
 com! -complete=custom,voom#Complete -nargs=? Voom call voom#Init(<q-args>)
 com! -complete=custom,voom#Complete -nargs=? VoomToggle call voom#Init(<q-args>,1)

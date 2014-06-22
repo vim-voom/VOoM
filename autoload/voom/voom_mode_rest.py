@@ -1,5 +1,5 @@
 # voom_mode_rest.py
-# Last Modified: 2013-10-31
+# Last Modified: 2014-04-09
 # VOoM -- Vim two-pane outliner, plugin for Python-enabled Vim 7.x
 # Website: http://www.vim.org/scripts/script.php?script_id=2657
 # Author: Vlad Irnov (vlad DOT irnov AT gmail DOT com)
@@ -68,7 +68,7 @@ def hook_makeOutline(VO, blines):
     # An underline can be only the 2nd or 3rd line of a block after a blank
     # line or previous underline. Thus, index of the next underline must be ok or ok+1.
     ok = 1
-    gotHead = False
+    isHead = False
     for i in xrange(Z):
         L2, L3 = L1, L2
         L1 = blines[i].rstrip()
@@ -95,24 +95,24 @@ def hook_makeOutline(VO, blines):
         # there is no overline; L3 must be blank line; L2 must be not inset
         if not L3 and len(L2)==len(head):
             #if len(L1) < len(L2.decode(ENC,'replace')): continue
-            gotHead = True
+            isHead = True
             ad = L1[0]
             bnode = i
         # there is overline -- bnode is lnum of overline!
         elif L3==L1:
             #if len(L1) < len(L2.decode(ENC,'replace')): continue
-            gotHead = True
+            isHead = True
             ad = L1[0]*2
             bnode = i-1
         else:
             if i > ok: ok = Z
             continue
 
-        if gotHead:
+        if isHead:
             if not ad in ads_levels:
                 ads_levels[ad] = len(ads_levels)+1
             lev = ads_levels[ad]
-            gotHead = False
+            isHead = False
             L1, L2, L3 = '','',''
             ok = i+2
 

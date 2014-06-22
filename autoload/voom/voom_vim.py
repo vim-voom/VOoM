@@ -1,6 +1,6 @@
 # voom_vim.py
-# Last Modified: 2013-11-25
-# Version: 5.0
+# Last Modified: 2014-05-28
+# Version: 5.1
 # VOoM -- Vim two-pane outliner, plugin for Python-enabled Vim 7.x
 # Website: http://www.vim.org/scripts/script.php?script_id=2657
 # Author: Vlad Irnov (vlad DOT irnov AT gmail DOT com)
@@ -622,14 +622,16 @@ def voom_Grep(): #{{{2
     matchesAND, matchesNOT = vim.eval('l:matchesAND'), vim.eval('l:matchesNOT')
     inhAND, inhNOT = vim.eval('l:inhAND'), vim.eval('l:inhNOT')
 
-    # convert blnums of mathes into tlnums, that is node numbers
+    # Convert blnums of mathes into tlnums, that is node numbers.
     tlnumsAND, tlnumsNOT = [], [] # lists of AND and NOT "tlnums" dicts
+
+    # Process AND matches.
     counts = {} # {tlnum: count of all AND matches in this node, ...}
     blnums = {} # {tlnum: blnum of first AND match in this node, ...}
+    inh_only = {} # tlnums of nodes added to an AND match by inheritance only
     idx = 0 # index into matchesAND and inhAND
     for L in matchesAND:
         tlnums = {} # {tlnum of node with a match:0, ...}
-        L.pop()
         for bln in L:
             bln = int(bln)
             tln = bisect.bisect_right(bnodes, bln)
@@ -652,12 +654,15 @@ def voom_Grep(): #{{{2
                         tlnums[s] = 0
                         counts[s] = 0
                         blnums[s] = bnodes[s-1]
+                        # node has no match, added thank to inheritance only
+                        inh_only[s] = 0
         idx+=1
         tlnumsAND.append(tlnums)
+
+    # Process NOT matches.
     idx = 0 # index into matchesNOT and inhNOT
     for L in matchesNOT:
         tlnums = {} # {tlnum of node with a match:0, ...}
-        L.pop()
         for bln in L:
             bln = int(bln)
             tln = bisect.bisect_right(bnodes, bln)
@@ -672,33 +677,47 @@ def voom_Grep(): #{{{2
         idx+=1
         tlnumsNOT.append(tlnums)
 
-    # if there are only NOT patterns
+    # There are only NOT patterns.
     if not matchesAND:
         tlnumsAND = [{}.fromkeys(range(1,len(bnodes)+1))]
 
-    # compute intersection
+    # Compute intersection.
     results = intersectDicts(tlnumsAND, tlnumsNOT)
     results = results.keys()
     results.sort()
     #print results
 
-    # need this to left-align UNLs in the qflist
+    # Compute max_size to left-align UNLs in the qflist.
+    # Add missing data for each node in results.
+    nNs = {} # {tlnum : 'N' if node has all AND matches, 'n' otherwise, ...}
     max_size = 0
     for t in results:
+        # there are only NOT patterns
         if not matchesAND:
             blnums[t] = bnodes[t-1]
             counts[t] = 0
+            nNs[t] = 'n'
+        # some nodes in results do not contain all AND matches
+        elif inh_only:
+            if t in inh_only:
+                nNs[t] = 'n'
+            else:
+                nNs[t] = 'N'
+        # every node in results contains all AND matches
+        else:
+            nNs[t] = 'N'
         size = len('%s%s%s' %(t, counts[t], blnums[t]))
         if size > max_size:
             max_size = size
 
-    # list of dictionaries for setloclist() or setqflist()
+    # Make list of dictionaries for setloclist() or setqflist().
     loclist = []
     for t in results:
         size = len('%s%s%s' %(t, counts[t], blnums[t]))
         spaces = ' '*(max_size - size)
         UNL = ' -> '.join(nodeUNL(VO,t)).replace("'", "''")
-        text = 'n%s:%s%s|%s' %(t, counts[t], spaces, UNL)
+        #text = 'n%s:%s%s|%s' %(t, counts[t], spaces, UNL)
+        text = '%s%s:%s%s|%s' %(nNs[t], t, counts[t], spaces, UNL)
         d = "{'text':'%s', 'lnum':%s, 'bufnr':%s}, " %(text, blnums[t], body)
         loclist .append(d)
     #print '\n'.join(loclist)
@@ -925,7 +944,6 @@ def voom_OopCopy(): #{{{2
     if ln2 < len(bnodes): bln2 = bnodes[ln2]-1
     else: bln2 = len(Body)
     blines = Body[bln1-1:bln2]
-
     setClipboard('\n'.join(blines))
 
 
@@ -954,7 +972,6 @@ def voom_OopCut(): #{{{2
     if ln2 < len(bnodes): bln2 = bnodes[ln2]-1
     else: bln2 = len(Body)
     blines = Body[bln1-1:bln2]
-
     setClipboard('\n'.join(blines))
     Body[bln1-1:bln2] = []
 
@@ -975,7 +992,6 @@ def voom_OopCut(): #{{{2
         VO.hook_doBodyAfterOop(VO, 'cut', 0,  None, None,  None, None,  bln1-1, ln1-1)
 
     ### ---go back to Tree---
-    vim.command('let l:blnShow=%s' %blnShow)
     vim.command("call voom#OopFromBody(%s,%s,%s)" %(body,tree,blnShow))
 
     ### remove = mark before modifying Tree
@@ -987,6 +1003,9 @@ def voom_OopCut(): #{{{2
     ### add snLn mark
     Tree[lnUp1-1] = '=' + Tree[lnUp1-1][1:]
     VO.snLn = lnUp1
+
+    # do this last to tell vim script that there were no errors
+    vim.command('let l:blnShow=%s' %blnShow)
 
 
 def voom_OopPaste(): #{{{2
@@ -1098,7 +1117,7 @@ def voom_OopPaste(): #{{{2
     Tree[ln1-1] = '=' + Tree[ln1-1][1:]
     VO.snLn = ln1
 
-    # we don't get here if previous code fails
+    # do this last to tell vim script that there were no errors
     vim.command('let l:blnShow=%s' %blnShow)
 
 
@@ -1201,7 +1220,7 @@ def voom_OopUp(): #{{{2
     Tree[lnUp1-1] = '=' + Tree[lnUp1-1][1:]
     VO.snLn = lnUp1
 
-    # we don't get here only if previous code fails
+    # do this last to tell vim script that there were no errors
     vim.command('let l:blnShow=%s' %blnShow)
 
 
@@ -1314,7 +1333,7 @@ def voom_OopDown(): #{{{2
     ### add snLn mark
     Tree[snLn-1] = '=' + Tree[snLn-1][1:]
 
-    # we don't get here only if previous code fails
+    # do this last to tell vim script that there were no errors
     vim.command('let l:blnShow=%s' %blnShow)
 
 
@@ -1330,6 +1349,7 @@ def voom_OopRight(): #{{{2
 
     # can't move right if ln1 node is child of previous node
     if levels[ln1-1] > levels[ln1-2]:
+        vim.command('let l:doverif=0')
         vim.command("call voom#OopFromBody(%s,%s,-1)" %(body,tree))
         return
 
@@ -1369,7 +1389,7 @@ def voom_OopRight(): #{{{2
         Tree[snLn-1] = '=' + Tree[snLn-1][1:]
         VO.snLn = snLn
 
-    # we don't get here if previous code fails
+    # do this last to tell vim script that there were no errors
     vim.command('let l:blnShow=%s' %blnShow)
 
 
@@ -1385,10 +1405,12 @@ def voom_OopLeft(): #{{{2
 
     # can't move left if at top level 1
     if levels[ln1-1]==1:
+        vim.command('let l:doverif=0')
         vim.command("call voom#OopFromBody(%s,%s,-1)" %(body,tree))
         return
     # don't move left if the range is not at the end of subtree
     if not AAMLEFT and ln2 < len(levels) and levels[ln2]==levels[ln1-1]:
+        vim.command('let l:doverif=0')
         vim.command("call voom#OopFromBody(%s,%s,-1)" %(body,tree))
         return
 
@@ -1428,7 +1450,7 @@ def voom_OopLeft(): #{{{2
         Tree[snLn-1] = '=' + Tree[snLn-1][1:]
         VO.snLn = snLn
 
-    # we don't get here if previous code fails
+    # do this last to tell vim script that there were no errors
     vim.command('let l:blnShow=%s' %blnShow)
 
 

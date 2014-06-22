@@ -1,5 +1,5 @@
 # voom_mode_markdown.py
-# Last Modified: 2013-11-01
+# Last Modified: 2014-04-09
 # VOoM -- Vim two-pane outliner, plugin for Python-enabled Vim 7.x
 # Website: http://www.vim.org/scripts/script.php?script_id=2657
 # Author: Vlad Irnov (vlad DOT irnov AT gmail DOT com)
@@ -50,7 +50,7 @@ def hook_makeOutline(VO, blines):
     useCloseHash = 0
 
     L2 = blines[0].rstrip() # first Body line
-    gotHead = False
+    isHead = False
     for i in xrange(Z):
         L1 = L2
         j = i+1
@@ -63,14 +63,14 @@ def hook_makeOutline(VO, blines):
             continue
 
         if L2 and (L2[0] in ADS_LEVELS) and not L2.lstrip(L2[0]):
-            gotHead = True
+            isHead = True
             lev = ADS_LEVELS[L2[0]]
             head = L1.strip()
             L2 = ''
             if not useHash:
                 useHash = 1
         elif L1.startswith('#'):
-            gotHead = True
+            isHead = True
             lev = len(L1) - len(L1.lstrip('#'))
             head = L1.strip('#').strip()
             if not useHash and lev < 3:
@@ -81,8 +81,8 @@ def hook_makeOutline(VO, blines):
         else:
             continue
 
-        if gotHead:
-            gotHead = False
+        if isHead:
+            isHead = False
             tline = '  %s|%s' %('. '*(lev-1), head)
             tlines_add(tline)
             bnodes_add(j)
