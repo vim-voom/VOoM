@@ -1,0 +1,2 @@
+#!/bin/bash
+vim +':set runtimepath^=.' +':%MkVimball! voom' +:q vimball.txt
