@@ -922,6 +922,7 @@ func! voom#TreeConfigWin() "{{{2
     "setl winfixheight
     setl winfixwidth
     setl nonumber
+    setl statusline=VOoM\ Outliner
     let w:voom_tree = 'VOoM'
 endfunc
 
