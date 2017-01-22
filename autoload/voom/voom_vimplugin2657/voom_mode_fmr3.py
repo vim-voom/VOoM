@@ -1,25 +1,28 @@
-# voom_mode_fmr1.py
-# Last Modified: 2013-10-31
-# VOoM -- Vim two-pane outliner, plugin for Python-enabled Vim 7.x
+# File: voom_mode_fmr3.py
+# Last Modified: 2017-01-07
+# Description: VOoM -- two-pane outliner plugin for Python-enabled Vim
 # Website: http://www.vim.org/scripts/script.php?script_id=2657
 # Author: Vlad Irnov (vlad DOT irnov AT gmail DOT com)
 # License: CC0, see http://creativecommons.org/publicdomain/zero/1.0/
 
 """
 VOoM markup mode for start fold markers with levels.
-Similar to the default mode, that is the :Voom command.
-See |voom-mode-fmr|, ../../doc/voom.txt#*voom-mode-fmr*
+See |voom-mode-fmr3|, ../../../doc/voom.txt#*voom-mode-fmr3*
 
-headline level 1 {{{1
-some text
+Headline text can be before or after the start fold marker with level.
+
+{{{1 headline level 1
 headline level 2 {{{2
-more text
 """
+
+import sys
+if sys.version_info[0] > 2:
+    xrange = range
 
 # Define this mode as an 'fmr' mode.
 MTYPE = 0
 
-# voom_vim.makeoutline() without char stripping
+
 def hook_makeOutline(VO, blines):
     """Return (tlines, bnodes, levels) for Body lines blines.
     blines is either Vim buffer object (Body) or list of buffer lines.
@@ -36,23 +39,33 @@ def hook_makeOutline(VO, blines):
         m = marker_re_search(bline)
         if not m: continue
         lev = int(m.group(1))
-        #head = bline[:m.start()].lstrip().rstrip(c).strip('-=~').strip()
-        head = bline[:m.start()].strip()
-        tline = ' %s%s|%s' %(m.group(2) or ' ', '. '*(lev-1), head)
+
+        head = bline[m.end():] # part after the fold marker
+        # strip optional special marks from left side: "o", "=", "o="
+        #if head and head[0]=='o': head = head[1:]
+        #if head and head[0]=='=': head = head[1:]
+        # lstrip all xo= to avoid conflicts with commands that add or remove them
+        head = head.lstrip('xo=')
+
+        # add part before the fold marker
+        if head:
+            head = '%s %s' % (bline[:m.start()].rstrip(), head.lstrip())
+        else:
+            head = bline[:m.start()]
+
+        tline = ' %s%s|%s' %(m.group(2) or ' ', '. '*(lev-1), head.strip())
         tlines_add(tline)
         bnodes_add(i+1)
         levels_add(lev)
     return (tlines, bnodes, levels)
 
 
-# same as voom_vim.newHeadline() but without ---
 def hook_newHeadline(VO, level, blnum, ln):
     """Return (tree_head, bodyLines).
     tree_head is new headline string in Tree buffer (text after |).
     bodyLines is list of lines to insert in Body buffer.
     """
     tree_head = 'NewHeadline'
-    #bodyLines = ['---%s--- %s%s' %(tree_head, VO.marker, level), '']
     bodyLines = ['%s %s%s' %(tree_head, VO.marker, level), '']
     return (tree_head, bodyLines)
 

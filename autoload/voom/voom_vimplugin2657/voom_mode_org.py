@@ -1,27 +1,21 @@
-# voom_mode_html.py
-# Last Modified: 2013-10-31
-# VOoM -- Vim two-pane outliner, plugin for Python-enabled Vim 7.x
+# File: voom_mode_org.py
+# Last Modified: 2017-01-07
+# Description: VOoM -- two-pane outliner plugin for Python-enabled Vim
 # Website: http://www.vim.org/scripts/script.php?script_id=2657
 # Author: Vlad Irnov (vlad DOT irnov AT gmail DOT com)
 # License: CC0, see http://creativecommons.org/publicdomain/zero/1.0/
 
 """
-VOoM markup mode for HTML headings.
-See |voom-mode-html|,  ../../doc/voom.txt#*voom-mode-html*
-
-<h1>headline level 1</h1>
-some text
- <h2> headline level 2 </h2>
-more text
- <H3  ALIGN="CENTER"> headline level 3 </H3>
- <  h4 >    headline level 4       </H4    >
-  some text <h4> <font color=red> headline 5 </font> </H4> </td></div>
-     etc.
+VOoM markup mode for Emacs Org-mode headline format.
+See |voom-mode-org|,  ../../../doc/voom.txt#*voom-mode-org*
 """
 
+import sys
+if sys.version_info[0] > 2:
+    xrange = range
+
 import re
-headline_search = re.compile(r'<\s*h(\d+).*?>(.*?)</h(\1)\s*>', re.IGNORECASE).search
-html_tag_sub = re.compile('<.*?>').sub
+headline_match = re.compile(r'^(\*+)\s').match
 
 
 def hook_makeOutline(VO, blines):
@@ -32,17 +26,15 @@ def hook_makeOutline(VO, blines):
     tlines, bnodes, levels = [], [], []
     tlines_add, bnodes_add, levels_add = tlines.append, bnodes.append, levels.append
     for i in xrange(Z):
-        bline = blines[i]
-        if not ('</h' in bline or '</H' in bline):
+        if not blines[i].startswith('*'):
             continue
-        m = headline_search(bline)
+        bline = blines[i]
+        m = headline_match(bline)
         if not m:
             continue
-        lev = int(m.group(1))
-        head = m.group(2)
-        # delete all html tags
-        head = html_tag_sub('',head)
-        tline = '  %s|%s' %('. '*(lev-1), head.strip())
+        lev = len(m.group(1))
+        head = bline[lev:].strip()
+        tline = '  %s|%s' %('. '*(lev-1), head)
         tlines_add(tline)
         bnodes_add(i+1)
         levels_add(lev)
@@ -55,15 +47,15 @@ def hook_newHeadline(VO, level, blnum, tlnum):
     bodyLines is list of lines to insert in Body buffer.
     """
     tree_head = 'NewHeadline'
-    bodyLines = ['<h%s>%s</h%s>' %(level, tree_head, level), '']
+    bodyLines = ['%s %s' %('*'*level, tree_head), '']
     return (tree_head, bodyLines)
 
 
 def hook_changeLevBodyHead(VO, h, levDelta):
     """Increase of decrease level number of Body headline by levDelta."""
     if levDelta==0: return h
-    m = headline_search(h)
-    level = int(m.group(1))
-    lev = level+levDelta
-    return '%s%s%s%s%s' %(h[:m.start(1)], lev, h[m.end(1):m.start(3)], lev, h[m.end(3):])
+    m = headline_match(h)
+    level = len(m.group(1))
+    return '%s%s' %('*'*(level+levDelta), h[m.end(1):])
+
 

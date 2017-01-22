@@ -1,19 +1,33 @@
-# voom_mode_latex.py
-# Last Modified: 2014-04-09
-# VOoM -- Vim two-pane outliner, plugin for Python-enabled Vim 7.x
+# File: voom_mode_latexDtx.py
+# Last Modified: 2017-01-15
+# Description: VOoM -- two-pane outliner plugin for Python-enabled Vim
 # Website: http://www.vim.org/scripts/script.php?script_id=2657
 # Author: Vlad Irnov (vlad DOT irnov AT gmail DOT com)
 # License: CC0, see http://creativecommons.org/publicdomain/zero/1.0/
 
 """
-VOoM markup mode for LaTeX.
-See |voom-mode-latex|,  ../../doc/voom.txt#*voom-mode-latex*
+VOoM markup mode for .dtx files (Documented LaTeX sources). It is almost
+identical to the LaTeX mode. The main difference is that only lines that begin
+with the comment character "%" can be headlines.
+See |voom-mode-latexDtx|,  ../../../doc/voom.txt#*voom-mode-latexDtx*
 """
+# THIS MODULE IS ALMOST IDENTICAL TO voom_mode_latex.py -- KEEP IN SYNC.
+#
+# Only commented lines are considered. Commented lines start with: optional
+# leading whitespace, at least one % character, optionally followed by any
+# combination of % and whitespace.
+# The following are all valid sectioning commands:
+#       %\section{Introduction}
+#       % \section{Introduction}
+#       %% \section{Introduction}
+#       %%% % % \section{Introduction}
+# The leading string of % and whitespace is preserved during outline operations.
+
 
 # SECTIONS, ELEMENTS, VERBATIMS can be defined here or in Vim variables:
-#   g:voom_latex_sections
-#   g:voom_latex_elements
-#   g:voom_latex_verbatims
+#   g:voom_latexdtx_sections
+#   g:voom_latexdtx_elements
+#   g:voom_latexdtx_verbatims
 #
 # SECTIONS defines sectioning commands, in order of increasing level:
 #     \part{A Heading}
@@ -45,28 +59,33 @@ SECTIONS = ['part', 'chapter',
             'paragraph', 'subparagraph']
 
 # fixed elements -- always at level 1
-ELEMENTS = r'^\s*\\(begin\s*\{(document|abstract|thebibliography)\}|end\s*\{document\}|bibliography\s*\{)'
+ELEMENTS = r'^[\s%]*\\(begin\s*\{(document|abstract|thebibliography)\}|end\s*\{document\}|bibliography\s*\{)'
 
 # verbatim regions, headlines are ignored inside \begin{verbatim} ... \end{verbatim}
-VERBATIMS = ['verbatim', 'comment']
+VERBATIMS = ['verbatim', 'comment', 'macrocode']
 #---------------------------------------------------------------------
 
 try:
     import vim
-    if vim.eval('exists("g:voom_latex_sections")')=='1':
-        SECTIONS = vim.eval("g:voom_latex_sections")
-    if vim.eval('exists("g:voom_latex_elements")')=='1':
-        ELEMENTS = vim.eval("g:voom_latex_elements")
-    if vim.eval('exists("g:voom_latex_verbatims")')=='1':
-        VERBATIMS = vim.eval("g:voom_latex_verbatims")
+    if vim.eval('exists("g:voom_latexdtx_sections")')=='1':
+        SECTIONS = vim.eval("g:voom_latexdtx_sections")
+    if vim.eval('exists("g:voom_latexdtx_elements")')=='1':
+        ELEMENTS = vim.eval("g:voom_latexdtx_elements")
+    if vim.eval('exists("g:voom_latexdtx_verbatims")')=='1':
+        VERBATIMS = vim.eval("g:voom_latexdtx_verbatims")
 except ImportError:
     pass
+
+import sys
+if sys.version_info[0] > 2:
+        xrange = range
+
 import re
 
 # \section{head}  or  \section*{head}  or  \section[optionaltitle]{head}
 # NOTE: match leading whitespace to preserve it during outline operations
 #                 m.group()    1      2                    3
-SECTS_RE = re.compile(r'^\s*\\(%s)\s*(\*|\[[^]{]*\])?\s*\{(.*)' %('|'.join(SECTIONS))).match
+SECTS_RE = re.compile(r'^[\s%%]*\\(%s)\s*(\*|\[[^]{]*\])?\s*\{(.*)' %('|'.join(SECTIONS))).match
 
 if ELEMENTS:
     ELEMS_RE = re.compile(ELEMENTS).match
@@ -74,7 +93,7 @@ else:
     ELEMS_RE = 0
 
 if VERBATIMS:
-    # NOTE: leading whitespace must be lstripped before matching
+    # NOTE: leading whitespace and % must be lstripped before matching
     VERBS_RE = re.compile(r'^\\begin\s*\{(%s)\}' %('|'.join(VERBATIMS))).match
 else:
     VERBS_RE = 0
@@ -105,6 +124,8 @@ def hook_makeOutline(VO, blines):
     mark = ' ' # * or -
     for i in xrange(Z):
         L = blines[i].lstrip()
+        if not L.startswith('%'): continue # dtx-specific
+        L = L.lstrip('% \t')               # dtx-specifc
         if not L.startswith('\\'): continue
         # regions to ignore: \begin{verbatim} ... \end{verbatim}
         if VERBS_RE:
@@ -189,9 +210,9 @@ def hook_newHeadline(VO, level, blnum, tlnum):
     (sect, lev) = get_sect_for_lev(VO._levs_sects, level)
     assert lev <= level
     if not lev==level:
-        vim.command("call voom#ErrorMsg('VOoM (LaTeX): MAXIMUM LEVEL EXCEEDED')")
+        vim.command("call voom#ErrorMsg('VOoM (latexDtx): MAXIMUM LEVEL EXCEEDED')")
 
-    bodyLines = ['%s{%s}' %(sect, tree_head), '']
+    bodyLines = ['%% %s{%s}' %(sect, tree_head), '%']  # dtx-specific (insert %)
     return (tree_head, bodyLines)
 
 
@@ -201,7 +222,7 @@ def hook_newHeadline(VO, level, blnum, tlnum):
 
 def hook_doBodyAfterOop(VO, oop, levDelta, blnum1, tlnum1, blnum2, tlnum2, blnumCut, tlnumCut):
     # this is instead of hook_changeLevBodyHead()
-    #print oop, levDelta, blnum1, tlnum1, blnum2, tlnum2, tlnumCut, blnumCut
+    #print('oop=%s levDelta=%s blnum1=%s tlnum1=%s blnum2=%s tlnum2=%s tlnumCut=%s blnumCut=%s' % (oop, levDelta, blnum1, tlnum1, blnum2, tlnum2, tlnumCut, blnumCut))
     Body = VO.Body
     Z = len(Body)
     bnodes, levels = VO.bnodes, VO.levels
@@ -230,7 +251,7 @@ def hook_doBodyAfterOop(VO, oop, levDelta, blnum1, tlnum1, blnum2, tlnum2, blnum
 
     # Examine each headline in the affected region from top to bottom.
     # For sections: change them to the current level and style.
-    # Correct invalid levels: ../../doc/voom.txt#ID_20120520092604
+    # Correct invalid levels: VOoM**voom_notes.txt#ID_20120520092604
     #   use max level if max possible level is exeeded
     #   use 1 for fixed elements at level >1
     invalid_sects, invalid_elems = [], [] # tree lnums of nodes with disallowed levels
@@ -269,7 +290,7 @@ def hook_doBodyAfterOop(VO, oop, levDelta, blnum1, tlnum1, blnum2, tlnum2, blnum
 
     ### --- the end ---
     if invalid_elems or invalid_sects:
-        vim.command("call voom#ErrorMsg('VOoM (LaTeX): Disallowed levels have been corrected after ''%s''')" %oop)
+        vim.command("call voom#ErrorMsg('VOoM (latexDtx): Disallowed levels have been corrected after ''%s''')" %oop)
         if invalid_elems:
             invalid_elems = ', '.join(['%s' %i for i in invalid_elems])
             vim.command("call voom#ErrorMsg('              level set to 1 for nodes: %s')" %invalid_elems)

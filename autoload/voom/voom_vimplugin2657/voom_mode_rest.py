@@ -1,13 +1,13 @@
-# voom_mode_rest.py
-# Last Modified: 2014-04-09
-# VOoM -- Vim two-pane outliner, plugin for Python-enabled Vim 7.x
+# File: voom_mode_rest.py
+# Last Modified: 2016-08-20
+# Description: VOoM -- two-pane outliner plugin for Python-enabled Vim
 # Website: http://www.vim.org/scripts/script.php?script_id=2657
 # Author: Vlad Irnov (vlad DOT irnov AT gmail DOT com)
 # License: CC0, see http://creativecommons.org/publicdomain/zero/1.0/
 
 """
 VOoM markup mode for reStructuredText.
-See |voom-mode-rest|,  ../../doc/voom.txt#*voom-mode-rest*
+See |voom-mode-rest|,  ../../../doc/voom.txt#*voom-mode-rest*
 
 http://docutils.sourceforge.net/docs/ref/rst/restructuredtext.html#sections
     The following are all valid section title adornment characters:
@@ -19,6 +19,16 @@ http://docutils.sourceforge.net/docs/ref/rst/restructuredtext.html#sections
 http://docs.python.org/documenting/rest.html#sections
 Python recommended styles:   ##  **  =  -  ^  "
 """
+
+import sys
+if sys.version_info[0] > 2:
+    xrange = range
+    def len_u(s, enc):
+        return len(s)
+else:
+    def len_u(s, enc):
+        return len(unicode(s, enc, 'replace'))
+
 
 # All valid section title adornment characters.
 AD_CHARS = """  ! " # $ % & ' ( ) * + , - . / : ; < = > ? @ [ \ ] ^ _ ` { | } ~  """
@@ -84,7 +94,7 @@ def hook_makeOutline(VO, blines):
             if i > ok: ok = Z
             continue
         # underline must be as long as headline text
-        if len(L1) < len(L2.decode(ENC,'replace')):
+        if len(L1) < len_u(L2, ENC):
             if i > ok: ok = Z
             continue
         head = L2.lstrip()
@@ -94,13 +104,13 @@ def hook_makeOutline(VO, blines):
             continue
         # there is no overline; L3 must be blank line; L2 must be not inset
         if not L3 and len(L2)==len(head):
-            #if len(L1) < len(L2.decode(ENC,'replace')): continue
+            #if len(L1) < len_u(L2, ENC): continue
             isHead = True
             ad = L1[0]
             bnode = i
         # there is overline -- bnode is lnum of overline!
         elif L3==L1:
-            #if len(L1) < len(L2.decode(ENC,'replace')): continue
+            #if len(L1) < len_u(L2, ENC): continue
             isHead = True
             ad = L1[0]*2
             bnode = i-1
@@ -163,7 +173,7 @@ def hook_newHeadline(VO, level, blnum, tlnum):
 
 def hook_doBodyAfterOop(VO, oop, levDelta, blnum1, tlnum1, blnum2, tlnum2, blnumCut, tlnumCut):
     # this is instead of hook_changeLevBodyHead()
-    #print oop, levDelta, blnum1, tlnum1, blnum2, tlnum2, tlnumCut, blnumCut
+    #print('oop=%s levDelta=%s blnum1=%s tlnum1=%s blnum2=%s tlnum2=%s tlnumCut=%s blnumCut=%s' % (oop, levDelta, blnum1, tlnum1, blnum2, tlnum2, tlnumCut, blnumCut))
     Body = VO.Body
     Z = len(Body)
     bnodes, levels = VO.bnodes, VO.levels
@@ -337,16 +347,16 @@ def deduce_ad_style(L1,L2,L3,ENC):
     # ----  L3      text  L3             Body[bln+1]
 
     # bnode is headline text, L2 is underline
-    if (L2[0] in AD_CHARS) and L2.lstrip(L2[0])=='' and (len(L2) >= len(L1.decode(ENC,'replace'))):
+    if (L2[0] in AD_CHARS) and L2.lstrip(L2[0])=='' and (len(L2) >= len_u(L1, ENC)):
         ad = L2[0]
     # bnode is overline
-    elif L1==L3 and (L1[0] in AD_CHARS) and L1.lstrip(L1[0])=='' and (len(L1) >= len(L2.decode(ENC,'replace'))):
+    elif L1==L3 and (L1[0] in AD_CHARS) and L1.lstrip(L1[0])=='' and (len(L1) >= len_u(L2, ENC)):
         ad = 2*L1[0]
     else:
-        print L1
-        print L2
-        print L3
-        print ENC
+        print(L1)
+        print(L2)
+        print(L3)
+        print(ENC)
         assert None
 
     return ad
@@ -354,7 +364,7 @@ def deduce_ad_style(L1,L2,L3,ENC):
 
 def test_deduce_ad_style(VO):
     """ A test to verify deduce_ad_style(). Execute from Vim
-      :py _VOoM.VOOMS[1].mModule.test_deduce_ad_style(_VOoM.VOOMS[1])
+      :py _VOoM2657.VOOMS[1].mModule.test_deduce_ad_style(_VOoM2657.VOOMS[1])
     """
     bnodes, levels, Body = VO.bnodes, VO.levels, VO.Body
     ads_levels = VO.ads_levels
@@ -371,7 +381,7 @@ def test_deduce_ad_style(VO):
             L3 = ''
         ad = deduce_ad_style(L1,L2,L3,ENC)
         lev = levels[i-1]
-        print i, ad, levels_ads[lev]
+        print('%s %s %s' %(i, ad, levels_ads[lev]))
         assert ad == levels_ads[lev]
 
 

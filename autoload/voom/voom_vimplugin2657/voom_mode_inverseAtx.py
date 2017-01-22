@@ -1,13 +1,13 @@
-# voom_mode_inverseAtx.py
-# Last Modified: 2013-11-07
-# VOoM -- Vim two-pane outliner, plugin for Python-enabled Vim 7.x
+# File: voom_mode_inverseAtx.py
+# Last Modified: 2017-01-07
+# Description: VOoM -- two-pane outliner plugin for Python-enabled Vim
 # Website: http://www.vim.org/scripts/script.php?script_id=2657
 # Author: Vlad Irnov (vlad DOT irnov AT gmail DOT com)
 # License: CC0, see http://creativecommons.org/publicdomain/zero/1.0/
 
 """
 VOoM markup mode for inverse Atx-style headers.
-See |voom-mode-various|,  ../../doc/voom.txt#*voom-mode-various*
+See |voom-mode-various|,  ../../../doc/voom.txt#*voom-mode-various*
 
 Headlines start with '@'. There is a maximum of 3 levels:
 
@@ -36,6 +36,10 @@ try:
         MAX = int(vim.eval("g:voom_inverseAtx_max"))
 except ImportError:
     pass
+
+import sys
+if sys.version_info[0] > 2:
+        xrange = range
 
 import re
 
@@ -112,7 +116,7 @@ def hook_newHeadline(VO, level, blnum, tlnum):
 # based on voom_mode_latex.py
 def hook_doBodyAfterOop(VO, oop, levDelta, blnum1, tlnum1, blnum2, tlnum2, blnumCut, tlnumCut):
     # this is instead of hook_changeLevBodyHead()
-    #print oop, levDelta, blnum1, tlnum1, blnum2, tlnum2, tlnumCut, blnumCut
+    #print('oop=%s levDelta=%s blnum1=%s tlnum1=%s blnum2=%s tlnum2=%s tlnumCut=%s blnumCut=%s' % (oop, levDelta, blnum1, tlnum1, blnum2, tlnum2, tlnumCut, blnumCut))
     Body = VO.Body
     Z = len(Body)
     bnodes, levels = VO.bnodes, VO.levels

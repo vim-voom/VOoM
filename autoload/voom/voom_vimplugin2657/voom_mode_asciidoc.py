@@ -1,13 +1,13 @@
-# voom_mode_asciidoc.py
-# Last Modified: 2014-05-21
-# VOoM -- Vim two-pane outliner, plugin for Python-enabled Vim 7.x
+# File: voom_mode_asciidoc.py
+# Last Modified: 2017-01-07
+# Description: VOoM -- two-pane outliner plugin for Python-enabled Vim
 # Website: http://www.vim.org/scripts/script.php?script_id=2657
 # Author: Vlad Irnov (vlad DOT irnov AT gmail DOT com)
 # License: CC0, see http://creativecommons.org/publicdomain/zero/1.0/
 
 """
 VOoM markup mode for AsciiDoc document and section titles.
-See |voom-mode-asciidoc|,   ../../doc/voom.txt#*voom-mode-asciidoc*
+See |voom-mode-asciidoc|,   ../../../doc/voom.txt#*voom-mode-asciidoc*
 """
 
 ### NOTES
@@ -30,7 +30,17 @@ try:
 except ImportError:
     DO_BLANKS = True
 
+import sys
+if sys.version_info[0] > 2:
+    xrange = range
+    def len_u(s, enc):
+        return len(s)
+else:
+    def len_u(s, enc):
+        return len(unicode(s, enc, 'replace'))
+
 import re
+
 
 # regex for 1-style headline, assumes there is no trailing whitespace
 HEAD_MATCH = re.compile(r'^(=+)(\s+\S.*?)(\s+\1)?$').match
@@ -125,7 +135,7 @@ def hook_makeOutline(VO, blines):
         #   is only 1 chars (avoids confusion with --, as in Vim syntax, not as in AsciiDoc)
         if not isHead and ch in ADS_LEVELS and L1.lstrip(ch)=='' and i > 0:
             L2 = blines[i-1].rstrip()
-            z2 = len(L2.decode(ENC,'replace'))
+            z2 = len_u(L2, ENC)
             z1 = len(L1)
             if (L2 and
                   (-3 < z2 - z1 < 3) and z1 > 1 and z2 > 1 and
@@ -240,7 +250,7 @@ def hook_doBodyAfterOop(VO, oop, levDelta, blnum1, tlnum1, blnum2, tlnum2, blnum
     # Based on Markdown mode function.
     # Inserts blank separator lines if missing.
 
-    #print oop, levDelta, blnum1, tlnum1, blnum2, tlnum2, tlnumCut, blnumCut
+    #print('oop=%s levDelta=%s blnum1=%s tlnum1=%s blnum2=%s tlnum2=%s tlnumCut=%s blnumCut=%s' % (oop, levDelta, blnum1, tlnum1, blnum2, tlnum2, tlnumCut, blnumCut))
     Body = VO.Body
     Z = len(Body)
     bnodes, levels = VO.bnodes, VO.levels
@@ -365,7 +375,7 @@ def hook_doBodyAfterOop(VO, oop, levDelta, blnum1, tlnum1, blnum2, tlnum2, blnum
                 useOneClose = hasOneClose
             else:
                 assert False
-            #print useOne, hasOne, ';', useOneClose, hasOneClose
+            #print('useOne=%s hasOne=%s useOneClose=%s hasOneClose=%s' %(useOne, hasOne, useOneClose, hasOneClose))
 
             ### change headline level and/or format
             # 2-style unchanged, only adjust level of underline
@@ -393,7 +403,7 @@ def hook_doBodyAfterOop(VO, oop, levDelta, blnum1, tlnum1, blnum2, tlnum2, blnum
                 L1 = theHead.strip()
                 Body[bln-1] = L1
                 # insert underline
-                Body[bln:bln] = [LEVELS_ADS[lev]*len(L1.decode(ENC,'replace'))]
+                Body[bln:bln] = [LEVELS_ADS[lev] * len_u(L1, ENC)]
                 update_bnodes(VO, i+1, 1)
                 b_delta+=1
             # remove underline, insert ='s

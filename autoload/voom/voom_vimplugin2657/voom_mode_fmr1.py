@@ -1,24 +1,32 @@
-# voom_mode_fmr2.py
-# Last Modified: 2013-10-31
-# VOoM -- Vim two-pane outliner, plugin for Python-enabled Vim 7.x
+# File: voom_mode_fmr1.py
+# Last Modified: 2017-01-07
+# Description: VOoM -- two-pane outliner plugin for Python-enabled Vim
 # Website: http://www.vim.org/scripts/script.php?script_id=2657
 # Author: Vlad Irnov (vlad DOT irnov AT gmail DOT com)
 # License: CC0, see http://creativecommons.org/publicdomain/zero/1.0/
 
 """
-VOoM markup mode. Headline text is after the start fold marker with level.
-See |voom-mode-fmr|, ../../doc/voom.txt#*voom-mode-fmr*
+VOoM markup mode for start fold markers with levels.
+See |voom-mode-fmr1|, ../../../doc/voom.txt#*voom-mode-fmr1*
 
-{{{1 headline level 1
+Headline text is before the start fold marker with level.
+Very similar to "fmr" mode.
+
+headline level 1 {{{1
 some text
-{{{2 headline level 2
+headline level 2 {{{2
 more text
 """
+
+import sys
+if sys.version_info[0] > 2:
+    xrange = range
 
 # Define this mode as an 'fmr' mode.
 MTYPE = 0
 
 
+# voom_vim.makeoutline() without char stripping
 def hook_makeOutline(VO, blines):
     """Return (tlines, bnodes, levels) for Body lines blines.
     blines is either Vim buffer object (Body) or list of buffer lines.
@@ -36,24 +44,23 @@ def hook_makeOutline(VO, blines):
         if not m: continue
         lev = int(m.group(1))
         #head = bline[:m.start()].lstrip().rstrip(c).strip('-=~').strip()
-        head = bline[m.end():]
-        # strip special marks o=
-        if head and head[0]=='o': head = head[1:]
-        if head and head[0]=='=': head = head[1:]
-        tline = ' %s%s|%s' %(m.group(2) or ' ', '. '*(lev-1), head.strip())
+        head = bline[:m.start()].strip()
+        tline = ' %s%s|%s' %(m.group(2) or ' ', '. '*(lev-1), head)
         tlines_add(tline)
         bnodes_add(i+1)
         levels_add(lev)
     return (tlines, bnodes, levels)
 
 
+# same as voom_vim.newHeadline() but without ---
 def hook_newHeadline(VO, level, blnum, ln):
     """Return (tree_head, bodyLines).
     tree_head is new headline string in Tree buffer (text after |).
     bodyLines is list of lines to insert in Body buffer.
     """
     tree_head = 'NewHeadline'
-    bodyLines = ['%s%s %s' %(VO.marker, level, tree_head), '']
+    #bodyLines = ['---%s--- %s%s' %(tree_head, VO.marker, level), '']
+    bodyLines = ['%s %s%s' %(tree_head, VO.marker, level), '']
     return (tree_head, bodyLines)
 
 

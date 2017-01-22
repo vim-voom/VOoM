@@ -1,20 +1,33 @@
-# voom_mode_pandoc.py
-# Last Modified: 2014-04-09
-# VOoM -- Vim two-pane outliner, plugin for Python-enabled Vim 7.x
+# File: voom_mode_markdown.py
+# Last Modified: 2017-01-07
+# Description: VOoM -- two-pane outliner plugin for Python-enabled Vim
 # Website: http://www.vim.org/scripts/script.php?script_id=2657
 # Author: Vlad Irnov (vlad DOT irnov AT gmail DOT com)
 # License: CC0, see http://creativecommons.org/publicdomain/zero/1.0/
 
 """
-VOoM markup mode for Pandoc Markdown headers.
-See |voom-mode-pandoc|,   ../../doc/voom.txt#*voom-mode-pandoc*
+VOoM markup mode for Markdown headers.
+See |voom-mode-markdown|,   ../../../doc/voom.txt#*voom-mode-markdown*
 """
 
+import sys
+if sys.version_info[0] > 2:
+    xrange = range
+    def len_u(s, enc):
+        return len(s)
+else:
+    def len_u(s, enc):
+        return len(unicode(s, enc, 'replace'))
+
 ### NOTES
-# The code is identical to voom_mode_markdown.py except that the parser ignores
-# headlines that:
-#  - are not preceded by a blank line, or another headline, or an end of fenced block
-#  - are inside fenced code blocks.
+# When an outline operation changes level, it has to deal with two ambiguities:
+#   a) Level 1 and 2 headline can use underline-style or hashes-style.
+#   b) Hashes-style can have or not have closing hashes.
+# To determine current preferences: check first headline at level <3 and check
+# first headline with hashes. This must be done in hook_makeOutline().
+# (Save in VO, similar to reST mode.) Cannot be done during outline operation,
+# that is in hook_doBodyAfterOop().
+# Defaults: use underline, use closing hashes.
 
 LEVELS_ADS = {1:'=', 2:'-'}
 ADS_LEVELS = {'=':1, '-':2}
@@ -45,11 +58,6 @@ def hook_makeOutline(VO, blines):
     # 0 or 1 -- True, use closing hashes (default); 2 -- False, do not use closing hashes
     useCloseHash = 0
 
-    # Keep track of fenced code blocks where headlines are ignored.
-    isFenced = ''
-    # Set True on lines after which a new headline is allowed: blank line,
-    # headline, end-of-fenced-block. Also applies to start-of-fenced-block.
-    ok = 1
     L2 = blines[0].rstrip() # first Body line
     isHead = False
     for i in xrange(Z):
@@ -61,36 +69,16 @@ def hook_makeOutline(VO, blines):
             L2 = ''
 
         if not L1:
-            ok = 1
-            continue
-
-        # ignore headlines inside fenced code block
-        if isFenced:
-            if L1.startswith(isFenced) and L1.lstrip(isFenced[0])=='':
-                isFenced = ''
-                ok = 1
-            continue
-
-        # Headline is allowed only after a blank line, another headline,
-        # end-of-fenced block. Same for start-of-fenced-block.
-        if not ok:
-            continue
-
-        # new fenced code block
-        if L1.startswith('~~~') or L1.startswith('```'):
-            ch = L1[0]
-            isFenced = ch*(len(L1)-len(L1.lstrip(ch)))
             continue
 
         if L2 and (L2[0] in ADS_LEVELS) and not L2.lstrip(L2[0]):
             isHead = True
             lev = ADS_LEVELS[L2[0]]
             head = L1.strip()
-            L2 = '' # this will set ok=1 on the next line (underline)
+            L2 = ''
             if not useHash:
                 useHash = 1
-        elif L1.startswith('#') and not L1.startswith('#. '):
-            ok = 1
+        elif L1.startswith('#'):
             isHead = True
             lev = len(L1) - len(L1.lstrip('#'))
             head = L1.strip('#').strip()
@@ -100,7 +88,6 @@ def hook_makeOutline(VO, blines):
                 if L1.endswith('#'): useCloseHash = 1
                 else: useCloseHash = 2
         else:
-            ok = 0
             continue
 
         if isHead:
@@ -118,7 +105,7 @@ def hook_makeOutline(VO, blines):
 
     return (tlines, bnodes, levels)
 
-#------ the rest is identical to voom_mode_markdown.py ------
+#------ the rest is identical to voom_mode_pandoc.py ------
 
 
 def hook_newHeadline(VO, level, blnum, tlnum):
@@ -153,7 +140,7 @@ def hook_doBodyAfterOop(VO, oop, levDelta, blnum1, tlnum1, blnum2, tlnum2, blnum
     # Based on reST mode function. Insert blank separator lines if missing,
     # even though they are not important for Markdown headlines.
 
-    #print oop, levDelta, blnum1, tlnum1, blnum2, tlnum2, tlnumCut, blnumCut
+    #print('oop=%s levDelta=%s blnum1=%s tlnum1=%s blnum2=%s tlnum2=%s tlnumCut=%s blnumCut=%s' % (oop, levDelta, blnum1, tlnum1, blnum2, tlnum2, tlnumCut, blnumCut))
     Body = VO.Body
     Z = len(Body)
     bnodes, levels = VO.bnodes, VO.levels
@@ -262,8 +249,8 @@ def hook_doBodyAfterOop(VO, oop, levDelta, blnum1, tlnum1, blnum2, tlnum2, blnum
                 useCloseHash = hasCloseHash
             else:
                 assert False
-            #print 'useHash:', useHash, 'hasHash:', hasHash, 'useCloseHash:', useCloseHash, 'hasCloseHash:', hasCloseHash
-            #print L1, L2
+            #print('useHash=%s hasHash=%s useCloseHash=%s hasCloseHash=%s' %(useHash, hasHash, useCloseHash, hasCloseHash))
+            #print('%s %s' %(L1, L2))
 
             # change headline level and/or format
 
@@ -292,7 +279,7 @@ def hook_doBodyAfterOop(VO, oop, levDelta, blnum1, tlnum1, blnum2, tlnum2, blnum
                 L = L1.strip('#').strip()
                 Body[bln-1] = L
                 # insert underline
-                Body[bln:bln] = [LEVELS_ADS[lev]*len(L.decode(ENC,'replace'))]
+                Body[bln:bln] = [LEVELS_ADS[lev] * len_u(L, ENC)]
                 update_bnodes(VO, i+1, 1)
                 b_delta+=1
             # remove underline, insert hashes
@@ -310,7 +297,7 @@ def hook_doBodyAfterOop(VO, oop, levDelta, blnum1, tlnum1, blnum2, tlnum2, blnum
                     L3 = Body[bln+1].rstrip()
                 else:
                     L3 = ''
-                #print L1, L2, L3
+                #print('%s %s %s' %(L1, L2, L3))
                 # yes: do not delete underline, change it to a blank line
                 if L3 and (L3.lstrip('=')=='' or L3.lstrip('-')==''):
                     Body[bln] = ''

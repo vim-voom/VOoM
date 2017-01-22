@@ -1,6 +1,6 @@
-# voom_mode_cwiki.py
-# Last Modified: 2013-10-31
-# VOoM -- Vim two-pane outliner, plugin for Python-enabled Vim 7.x
+# File: voom_mode_cwiki.py
+# Last Modified: 2017-01-07
+# Description: VOoM -- two-pane outliner plugin for Python-enabled Vim
 # Website: http://www.vim.org/scripts/script.php?script_id=2657
 # Author: Vlad Irnov (vlad DOT irnov AT gmail DOT com)
 # License: CC0, see http://creativecommons.org/publicdomain/zero/1.0/
@@ -8,7 +8,7 @@
 """
 VOoM markup mode for cwiki Vim plugin. Contributed by Craig B. Allen.
 http://www.vim.org/scripts/script.php?script_id=2176
-See |voom-mode-various|,  ../../doc/voom.txt#*voom-mode-various*
+See |voom-mode-various|,  ../../../doc/voom.txt#*voom-mode-various*
 
 +++ headline level 1
 some text
@@ -20,6 +20,10 @@ etc.
 
 First + must be at start of line. Whitespace after the last + is optional.
 """
+
+import sys
+if sys.version_info[0] > 2:
+    xrange = range
 
 import re
 headline_match = re.compile(r'^\+\+(\++)').match

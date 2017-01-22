@@ -1,26 +1,28 @@
-# voom_mode_thevimoutliner.py
-# Last Modified: 2013-10-31
-# VOoM -- Vim two-pane outliner, plugin for Python-enabled Vim 7.x
+# File: voom_mode_vimoutliner.py
+# Last Modified: 2017-01-07
+# Description: VOoM -- two-pane outliner plugin for Python-enabled Vim
 # Website: http://www.vim.org/scripts/script.php?script_id=2657
 # Author: Vlad Irnov (vlad DOT irnov AT gmail DOT com)
 # License: CC0, see http://creativecommons.org/publicdomain/zero/1.0/
 
 """
-VOoM markup mode for The Vim Outliner format.
-See |voom-mode-thevimoutliner|,  ../../doc/voom.txt#*voom-mode-thevimoutliner*
+VOoM markup mode for VimOutliner format.
+See |voom-mode-vimoutliner|,  ../../../doc/voom.txt#*voom-mode-vimoutliner*
 
-Headlines and body lines are indented with Tabs. Number of tabs indicates
-level. 0 Tabs means level 1.
-
-Headlines are lines with >=0 Tabs followed by any character except '|'.
-
-Blank lines are not headlines.
+Headlines are lines with >=0 Tabs followed by any character except:
+    : ; | > <
+Otherwise this mode is identical to the "thevimoutliner" mode.
 """
 
-# Body lines start with these chars
-BODY_CHARS = {'|':0,}
+import sys
+if sys.version_info[0] > 2:
+        xrange = range
 
-# ------ the rest is identical to voom_mode_vimoutliner.py -------------------
+# Body lines start with these chars
+BODY_CHARS = {':':0, ';':0, '|':0, '<':0, '>':0,}
+
+
+#-------------copy/pasted from voom_mode_thevimoutliner.py -------------------
 def hook_makeOutline(VO, blines):
     """Return (tlines, bnodes, levels) for Body lines blines.
     blines is either Vim buffer object (Body) or list of buffer lines.
@@ -48,6 +50,7 @@ def hook_newHeadline(VO, level, blnum, tlnum):
     """Return (tree_head, bodyLines).
     tree_head is new headline string in Tree buffer (text after |).
     bodyLines is list of lines to insert in Body buffer.
+    column is cursor position in new headline in Body buffer.
     """
     tree_head = 'NewHeadline'
     bodyLines = ['%s%s' %('\t'*(level-1), tree_head),]
@@ -67,7 +70,7 @@ def hook_doBodyAfterOop(VO, oop, levDelta, blnum1, tlnum1, blnum2, tlnum2, blnum
     Body = VO.Body
     Z = len(Body)
 
-    # ---- identical to voom_mode_python.py code ----------------------------
+    # ---- identical to Python mode ----
     if blnum1:
         assert blnum1 == VO.bnodes[tlnum1-1]
         if tlnum2 < len(VO.bnodes):

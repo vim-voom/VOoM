@@ -1,14 +1,18 @@
-# voom_mode_python.py
-# Last Modified: 2014-04-13
-# VOoM -- Vim two-pane outliner, plugin for Python-enabled Vim 7.x
+# File: voom_mode_python.py
+# Last Modified: 2017-01-07
+# Description: VOoM -- two-pane outliner plugin for Python-enabled Vim
 # Website: http://www.vim.org/scripts/script.php?script_id=2657
 # Author: Vlad Irnov (vlad DOT irnov AT gmail DOT com)
 # License: CC0, see http://creativecommons.org/publicdomain/zero/1.0/
 
 """
 VOoM markup mode for Python code.
-See |voom-mode-python|,  ../../doc/voom.txt#*voom-mode-python*
+See |voom-mode-python|,  ../../../doc/voom.txt#*voom-mode-python*
 """
+
+import sys
+if sys.version_info[0] > 2:
+        xrange = range
 
 import token, tokenize
 import traceback
@@ -162,7 +166,7 @@ def get_lnums_from_tokenize(blines):
 
     for tok in tokenize.generate_tokens(BLines(blines).readline):
         toktype, toktext, (srow, scol), (erow, ecol), line = tok
-        #print token.tok_name[toktype], tok
+        #print('token.tok_name[toktype]=%s tok=%s' %(token.tok_name[toktype], tok))
         if toktype == NAME:
             if not inName:
                 inName = True
@@ -210,7 +214,7 @@ def hook_newHeadline(VO, level, blnum, tlnum):
 
 def hook_doBodyAfterOop(VO, oop, levDelta, blnum1, tlnum1, blnum2, tlnum2, blnumCut, tlnumCut):
     # this is instead of hook_changeLevBodyHead()
-    #print oop, levDelta, blnum1, tlnum1, blnum2, tlnum2, tlnumCut, blnumCut
+    #print('oop=%s levDelta=%s blnum1=%s tlnum1=%s blnum2=%s tlnum2=%s tlnumCut=%s blnumCut=%s' % (oop, levDelta, blnum1, tlnum1, blnum2, tlnum2, tlnumCut, blnumCut))
     Body = VO.Body
     Z = len(Body)
 
@@ -219,7 +223,7 @@ def hook_doBodyAfterOop(VO, oop, levDelta, blnum1, tlnum1, blnum2, tlnum2, blnum
     # determine level of pasted region from indent of its first line
     if oop=='paste':
         bline1 = Body[blnum1-1]
-        lev = (len(bline1) - len(bline1.lstrip())) / len(ind) + 1
+        lev = int((len(bline1) - len(bline1.lstrip())) / len(ind)) + 1
         levDelta = VO.levels[tlnum1-1] - lev
 
     if not levDelta: return

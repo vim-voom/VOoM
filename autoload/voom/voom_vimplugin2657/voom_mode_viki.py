@@ -1,14 +1,18 @@
-# voom_mode_viki.py
-# Last Modified: 2014-04-09
-# VOoM -- Vim two-pane outliner, plugin for Python-enabled Vim 7.x
+# File: voom_mode_viki.py
+# Last Modified: 2017-01-07
+# Description: VOoM -- two-pane outliner plugin for Python-enabled Vim
 # Website: http://www.vim.org/scripts/script.php?script_id=2657
 # Author: Vlad Irnov (vlad DOT irnov AT gmail DOT com)
 # License: CC0, see http://creativecommons.org/publicdomain/zero/1.0/
 
 """
 VOoM markup mode for headline markup used by Vim Viki/Deplate plugin.
-See |voom-mode-viki|,  ../../doc/voom.txt#*voom-mode-viki*
+See |voom-mode-viki|,  ../../../doc/voom.txt#*voom-mode-viki*
 """
+
+import sys
+if sys.version_info[0] > 2:
+        xrange = range
 
 import re
 headline_match = re.compile(r'^(\*+)\s').match

@@ -1,13 +1,13 @@
-# voom_mode_dokuwiki.py
-# Last Modified: 2014-02-02
-# VOoM -- Vim two-pane outliner, plugin for Python-enabled Vim 7.x
+# File: voom_mode_dokuwiki.py
+# Last Modified: 2017-01-07
+# Description: VOoM -- two-pane outliner plugin for Python-enabled Vim
 # Website: http://www.vim.org/scripts/script.php?script_id=2657
 # Author: Vlad Irnov (vlad DOT irnov AT gmail DOT com)
 # License: CC0, see http://creativecommons.org/publicdomain/zero/1.0/
 
 """
 VOoM markup mode for DokuWiki sections.
-See |voom-mode-dokuwiki|,  ../../doc/voom.txt#*voom-mode-dokuwiki*
+See |voom-mode-dokuwiki|,  ../../../doc/voom.txt#*voom-mode-dokuwiki*
 """
 # based on voom_mode_inverseAtx.py
 
@@ -15,6 +15,11 @@ try:
     import vim
 except ImportError:
     pass
+
+import sys
+if sys.version_info[0] > 2:
+    xrange = range
+
 import re
 
 headline_match = re.compile(r'^( ?| \t[ \t]*)(={2,})(.+?)(={2,})[ \t]*$').match
@@ -69,7 +74,7 @@ def hook_newHeadline(VO, level, blnum, tlnum):
 
 def hook_doBodyAfterOop(VO, oop, levDelta, blnum1, tlnum1, blnum2, tlnum2, blnumCut, tlnumCut):
     # this is instead of hook_changeLevBodyHead()
-    #print oop, levDelta, blnum1, tlnum1, blnum2, tlnum2, tlnumCut, blnumCut
+    #print('oop=%s levDelta=%s blnum1=%s tlnum1=%s blnum2=%s tlnum2=%s tlnumCut=%s blnumCut=%s' % (oop, levDelta, blnum1, tlnum1, blnum2, tlnum2, tlnumCut, blnumCut))
     Body = VO.Body
     Z = len(Body)
     bnodes, levels = VO.bnodes, VO.levels
