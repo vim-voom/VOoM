@@ -1,6 +1,6 @@
 # File: voom_vim.py
-# Last Modified: 2017-01-17
-# Version: 5.2
+# Last Modified: 2017-02-18
+# Version: 5.3
 # Description: VOoM -- two-pane outliner plugin for Python-enabled Vim
 # Website: http://www.vim.org/scripts/script.php?script_id=2657
 # Author: Vlad Irnov (vlad DOT irnov AT gmail DOT com)
@@ -38,7 +38,7 @@ MAKE_HEAD = {}
 
 # default start fold marker string and regexp
 MARKER = '{{{'                            #}}}
-MARKER_RE = re.compile(r'{{{(\d+)(x?)')   #}}}
+MARKER_RE = re.compile(r'{{{(\d*[1-9]\d*)(x?)')   #}}}
 
 # {'markdown': 'markdown', 'tex': 'latex', ...}
 if vim.eval("exists('g:voom_ft_modes')")=='1':
@@ -61,9 +61,9 @@ else:
 
 # allow/disallow Move Left when nodes are not at the end of their subtree
 if vim.eval("exists('g:voom_always_allow_move_left')")=='1':
-    AAMLEFT = int(vim.eval('g:voom_always_allow_move_left'))
+    ALWAYS_ALLOW_MOVE_LEFT = int(vim.eval('g:voom_always_allow_move_left')) != 0
 else:
-    AAMLEFT = 0
+    ALWAYS_ALLOW_MOVE_LEFT = False
 
 
 #---Outline Construction----------------------{{{1o
@@ -131,7 +131,7 @@ def voom_Init(body): #{{{2
         if marker==MARKER:
             VO.marker_re = MARKER_RE
         else:
-            VO.marker_re = re.compile(re.escape(marker) + r'(\d+)(x?)')
+            VO.marker_re = re.compile(re.escape(marker) + r'(\d*[1-9]\d*)(x?)')
 
         # chars to strip from right side of Tree headlines ("fmr" modes)
         if vim.eval("exists('g:voom_rstrip_chars_{&ft}')")=="1":
@@ -378,7 +378,7 @@ def voom_Voominfo(): #{{{2
         print("_VOoM2657.FT_MODES = %s" % repr(FT_MODES))
         print("_VOoM2657.DEFAULT_MODE = %s" % repr(DEFAULT_MODE))
         print("_VOoM2657.CLIPBOARD = %s" % repr(CLIPBOARD))
-        print("_VOoM2657.AAMLEFT = %s" % repr(AAMLEFT))
+        print("_VOoM2657.ALWAYS_ALLOW_MOVE_LEFT = %s" % repr(ALWAYS_ALLOW_MOVE_LEFT))
         print('_VOoM2657 :     "%s"' % (os.path.abspath(sys.modules['voom_vimplugin2657.voom_vim'].__file__)))
         print(vimvars)
 
@@ -1379,10 +1379,18 @@ def voom_OopRight(): #{{{2
 
     ### Move right means increment level by 1 for all nodes in the range.
 
+    cannotmove = False
     # can't move right if ln1 node is child of previous node
     if levels[ln1-1] > levels[ln1-2]:
-        vim.command('let l:doverif=0')
+        cannotmove = True
+    # move right is not allowed
+    elif VO.MTYPE > 1:
+        cannotmove = True
+        vim.command("call voom#ErrorMsg('VOoM: operation ''Move Right'' is not available in this markup mode')")
+    if cannotmove:
+        vim.command("let &fdm=b_fdm")
         vim.command("call voom#OopFromBody(%s,%s,-1)" %(body,tree))
+        vim.command('let l:doverif=0')
         vim.command('let l:pyOK=1')
         return
 
@@ -1437,16 +1445,21 @@ def voom_OopLeft(): #{{{2
 
     ### Move left means decrement level by 1 for all nodes in the range.
 
+    cannotmove = False
     # can't move left if at top level 1
-    if levels[ln1-1]==1:
-        vim.command('let l:doverif=0')
-        vim.command("call voom#OopFromBody(%s,%s,-1)" %(body,tree))
-        vim.command('let l:pyOK=1')
-        return
+    if levels[ln1-1] <= 1:
+        cannotmove = True
     # don't move left if the range is not at the end of subtree
-    if not AAMLEFT and ln2 < len(levels) and levels[ln2]==levels[ln1-1]:
-        vim.command('let l:doverif=0')
+    elif not ALWAYS_ALLOW_MOVE_LEFT and ln2 < len(levels) and levels[ln2]==levels[ln1-1]:
+        cannotmove = True
+    # move left is not allowed
+    elif VO.MTYPE > 1:
+        cannotmove = True
+        vim.command("call voom#ErrorMsg('VOoM: operation ''Move Left'' is not available in this markup mode')")
+    if cannotmove:
+        vim.command("let &fdm=b_fdm")
         vim.command("call voom#OopFromBody(%s,%s,-1)" %(body,tree))
+        vim.command('let l:doverif=0')
         vim.command('let l:pyOK=1')
         return
 
@@ -1977,7 +1990,7 @@ def voom_GetVoomRange(withSubnodes=0): #{{{2
     vim.command("let [l:bln1,l:bln2]=[%s,%s]" %(bln1,bln2))
 
 
-def voom_GetBuffRange(): #{{{2
+def voom_GetBufRange(): #{{{2
     body = int(vim.eval('l:body'))
     ln1, ln2 = int(vim.eval('a:ln1')), int(vim.eval('a:ln2'))
     VO = VOOMS[body]

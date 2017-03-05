@@ -1,6 +1,6 @@
 *voom.txt*      VOoM -- two-pane outliner plugin for Python-enabled Vim
-Last Modified: 2017-01-22
-Version: 5.2
+Last Modified: 2017-03-05
+Version: 5.3
 Description: VOoM -- two-pane outliner plugin for Python-enabled Vim
 Website: http://www.vim.org/scripts/script.php?script_id=2657
 Author: Vlad Irnov (vlad DOT irnov AT gmail DOT com)
@@ -833,25 +833,49 @@ To make VOoM always use the register of your choice, add the following to
 where "o" can be any a-z letter, that is one of the 26 lowercase registers, see
 |registers| and |quote_alpha|.
 
+To see which Vim register is currently used by VOoM during copy/cut/paste, run
+":Voominfo all" and look at the value of _VOoM2657.CLIPBOARD .
+
 ==============================================================================
 g:voom_always_allow_move_left   [[[2~
                                                *g:voom_always_allow_move_left*
-By default, outline operation Move Left (<<, Ctrl-Left, <localleader>l) is
+By default, outline operation Move Left (<<, <C-Left>, <LocalLeader>l) is
 allowed only when the nodes being moved are at the end of their subtree, that
-is when there are no siblings below. Suppose there is an outline: >
+is when there are no siblings below. Suppose there is this outline: >
           |AAA
           . |BBB
           . |CCC
           . |DDD
           |EEE
 
-Node DDD can be moved left, but individual nodes BBB and CCC cannot. To move
-BBB left: 1) select nodes BBB, CCC, DDD  2) move them left 3) select CCC and
-DDD and move them right. In one motion: put the cursor on BBB and press VD<<j>>
-("D" extends selection to the Downmost sibling).
+Node DDD can be moved left, but individual nodes BBB and CCC cannot.
 
 To always allow Move Left, add the following to .vimrc and restart Vim: >
     let g:voom_always_allow_move_left = 1
+
+When enabled as above, Move Left applied to node CCC will result in: >
+          |AAA
+          . |BBB
+          |CCC
+          . |DDD
+          |EEE
+
+In some other outliners the result of moving CCC left is >
+          |AAA
+          . |BBB
+          . |DDD
+          |CCC
+          |EEE
+
+It is always possible to produce either result by combining several commands.
+To produce the first result, put the cursor on CCC and do
+    V D << j >>
+To produce the second result, put the cursor on CCC and do
+    dd c pp
+
+"g:voom_always_allow_move_left" does not exist by default, which is the same as
+setting it to 0. To see if Move Left is currently always allowed or not, run
+":Voominfo all" and look at the value of _VOoM2657.ALWAYS_ALLOW_MOVE_LEFT .
 
 ==============================================================================
 Various options   [[[2~
@@ -859,13 +883,13 @@ Various options   [[[2~
 g:voom_verify_oop   ~
     Verify outline after every outline operation (doesn't apply to :VoomSort).
     Default is 1 (enabled).
-    Set to 0 to disable (NOT RECOMMENDED!!!, especially with markup modes).
+    Set to 0 to disable -- NOT RECOMMENDED!!!
 
     This option turns on outline verification after most outline operations.
-    It will alert to outline corruption, which is very likely if there is a bug
-    in outline operation. The downside is that there is a performance hit,
-    usually noticeable only with large outlines (>1000 headlines).
-    NOTE: Do not disable this option when using complex outlining modes like
+    It will alert to outline corruption, which is likely to occur if there is a
+    bug in outline operation. The downside is that there is a performance hit,
+    usually noticeable only with very large outlines (>1 MB, >1000 headlines).
+    NOTE: DO NOT DISABLE this option when using complex outlining modes like
     "rest", "latex", "python" -- these markups have intrinsic problems.
 
 
@@ -888,8 +912,8 @@ g:voom_rstrip_chars_{filetype}   ~
 g:voom_user_command   ~
     This option allows to execute an arbitrary user-defined command when
     autoload/voom.vim is sourced. It is a string to be executed via |execute|
-    at the very end of autoload/voom.vim. It does not exist by default. This
-    option is intended for loading user add-ons, see |voom-addons|.
+    at the very end of autoload/voom.vim. It does not exist by default. It is
+    intended for loading user add-ons, see |voom-addons| for examples.
 
 
 g:voom_create_devel_commands   ~
@@ -898,46 +922,57 @@ g:voom_create_devel_commands   ~
 
 
 g:voom_did_load_plugin   ~
-    Loading guard for ../plugin/voom.vim .
+    Loading guard for ../plugin/voom.vim . To disable VOoM plugin without
+    uninstalling it, add to .vimrc: >
+        let g:voom_did_load_plugin = 1
 
 ==============================================================================
-Tree 'filetype'   [[[2~
+Filetypes "voomtree" and "voomlog"   [[[2~
 
-When a Tree buffer is created, its 'filetype' is set to "voomtree"
-When the __PyLog__ buffer is created, its 'filetype' is set to "voomlog".
-Thus, users can customize these buffers (foldlevel, syntax, wrap/norwap,
-list/nolist, bufhidden, etc.) via standard Vim configuration files:
-    ~/.vim/ftplugin/voomtree.vim
-    ~/.vim/syntax/voomtree.vim
+When a VOoM Tree buffer is created, its 'filetype' is set to "voomtree".
+When a VOoM __PyLog__ buffer is created, its 'filetype' is set to "voomlog".
+This is done to allow users to customize the look of these buffers via standard
+Vim configuration files: >
     ~/.vim/after/ftplugin/voomtree.vim
+    ~/.vim/after/syntax/voomtree.vim
+    ~/.vim/after/ftplugin/voomlog.vim
+    ~/.vim/after/syntax/voomlog.vim
 
-    ~/.vim/ftplugin/voomlog.vim
-    ~/.vim/syntax/voomlog.vim
-    etc.
+For example, for a fancier foldtext in Tree buffers, create file >
+    ~/.vim/after/ftplugin/voomtree.vim
+with line >
+    setl foldtext=getline(v:foldstart).'\ \ '.repeat('\ ',winwidth(0)-strchars(getline(v:foldstart))-8).'('.(v:foldend-v:foldstart).')'
 
-NOTE: VOoM itself does not have any of these files.
-NOTE: Be careful not to break VOoM by messing with critical settings.
+NOTE: Be careful not to break VOoM by messing with critical settings! With a
+few exceptions, settings should be limited only to window-local Vim options:
+foldtext, foldlevel, statusline, wrap/norwap, list/nolist, number/nonumber.
 
-For example, to always set initial Tree 'foldlevel' to 1, create file
-    ~/.vim/ftplugin/voomtree.vim
-with line
-    setl fdl=1
-
+When setting Tree options that are not window-local, or are meant to be set
+only initially, a load guard should be used to load such code only once: >
+    if exists('b:voomtree_customization_done') | finish | endif
+        " Default bufhidden=wipe. May be changed (not recommended). 
+        setl bufhidden=hide
+        " Tree mappings for quick change of foldlevel.
+        nnoremap <buffer><silent> <Leader>1 :setl fdl=1<CR>
+        nnoremap <buffer><silent> <Leader>2 :setl fdl=2<CR>
+        nnoremap <buffer><silent> <Leader>3 :setl fdl=3<CR>
+    let b:voomtree_customization_done = 1
 
 To modify default Tree buffer-local mappings or create new ones:
-    1. Create file ftplugin/voomtree.vim .
-    2. Copy relevant mappings from voom.vim function voom#TreeMap().
-    3. Change {lhs} and/or {rhs}.
-
+1. Create file ~/.vim/after/ftplugin/voomtree.vim .
+2. Copy relevant mappings from ../autoload/voom.vim function voom#TreeMap().
+3. Change {lhs} and/or {rhs}.
+4. Use a buffer-local variable guard to load the code only once (as above).
 
 To customize Tree buffers differently for different markup modes and Body
 filetypes, the following prototype code can be used in voomtree.vim: >
 
+    if exists('b:voomtree_customization_done') | finish | endif
     let s:bnr = bufnr('')
     let [s:mmode, s:MTYPE, s:body, s:tree] = voom#GetModeBodyTree(s:bnr)
     if s:bnr != s:tree | finish | endif
     let s:FT = getbufvar(s:body, '&ft')
-    " An fmr mode.
+    " An fmr mode. Folds are initially opened according to marks o=.
     if s:MTYPE == 0
         " do nothing
     " 'filetype' of Body buffer.
@@ -946,10 +981,13 @@ filetypes, the following prototype code can be used in voomtree.vim: >
     " Name of markup mode.
     elseif s:mmode ==# 'wiki'
         setl fdl=3
-        " Create Tree buffer-local mappings.
-        nnoremap <buffer><silent> <Leader>1 :setl fdl=1<CR>
     endif
     unlet s:bnr s:FT s:mmode s:MTYPE s:body s:tree
+    let b:voomtree_customization_done = 1
+
+Syntax highlighting can be customized similarly. VOoM adds some default syntax
+highlighting to Tree and PyLog buffers. For details, see functions in
+../autoload/voom.vim : voom#TreeConfigFT(body), voom#LogConfigFT() .
 
 See also |voom-addons|.
 
@@ -2365,7 +2403,7 @@ is often preceded by a label: >
     --------------------------
 
 Such node should not be moved: the label is part of the previous node and will
-become separated from its headline. (Let me know if this needs to be fixed.)
+become separated from its headline.
 
 2) The VoomSort operation can result in an error if the last section
 (end-of-file) is not terminated with a blank line. The headline that ends up
@@ -3562,8 +3600,8 @@ The following happens when the command :Voomexec is executed:
 
 1) The type of script is determined.
 -----------------------------------
-    :Voomexec           Without an argument, the type of script is set to
-                        buffer 'filetype': "python" if filetype is "python",
+    :Voomexec           Without an argument, the type of script is set to the
+                        buffer's 'filetype': "python" if filetype is "python",
                         "vim" if filetype is "vim", etc. When executed from a
                         Tree buffer (also with <LocalLeader>e), filetype of
                         the corresponding Body is used.
@@ -3716,11 +3754,11 @@ doesn't care about folding or non-VOoM buffers. Typical usage: >
         echo getbufline(body,bln1,bln2)
     endif
 
-4) Function voom#GetBuffRange(ln1,ln2) can be used by other scripts to obtain
+4) Function voom#GetBufRange(ln1,ln2) can be used by other scripts to obtain
 the contents of VOoM nodes in Tree line range ln1,ln2 if the current buffer is
 a Tree (same as the "R" command). If the current buffer is not a Tree, it
 returns the ln1,ln2 range for the current buffer. Example: >
-    let [bufType, body, bln1, bln2] = voom#GetBuffRange(line("'<"),line("'>"))
+    let [bufType, body, bln1, bln2] = voom#GetBufRange(line("'<"),line("'>"))
     if body < 0 | return | endif
     let blines = getbufline(body,bln1,bln2)
     ... do something with blines ...
@@ -3830,7 +3868,7 @@ There is no special API. The following applies:
           :echo voom#GetVar('s:voom_trees')
           :echo voom#GetVar('s:voom_bodies')
 <
-      Example: move the cursor to Log window in the current tab >
+      Example: move the cursor to __PyLog__ window in the current tab >
           :let logwnr = bufwinnr(voom#GetVar('s:voom_logbnr'))
           :if logwnr > 0 | exe logwnr.'wincmd w' | endif
 <
@@ -4095,6 +4133,30 @@ Pythons will be missing or misformed in the __PyLog__ buffer.
 ==============================================================================
 Changelog   [[[1x~
                                                  *voom-changelog*
+
+Changelog for VOoM v5.3, released 2017-03-05
+--------------------------------------------
+
+PROBLEM: When an existing Tree buffer is loaded in another window, user's
+window-local Vim options set in ftplugin/voomtree.vim (e.g., foldtext) are
+replaced by VOoM defaults or can change.
+SOLUTION: Do "setl ft=voomtree" (and reapply syntax), when checking for
+w:voom_tree in voom#TreeBufEnter().
+
+PROBLEM with fmr modes: lines with {{{0, {{{00, ... are shown in Tree as
+headlines at level 1. Internally they have level 0.
+SOLUTION: Change regexp for level number from "\d+" to "\d*[1-9]\d*".
+The result matches Vim behavior when foldmethod is marker:
+{{{0, {{{00, ... are now ignored. Same in Vim: no effect on folding.
+{{{01, {{{0002, ... are level 1, 2, ... as before. Same in Vim.
+
+Allow Move Left on 2nd Tree line. Useful when 1st headline has level >1.
+
+Improved default syntax hi in Tree.
+
+A few minor code changes.
+
+
 Changelog for VOoM v5.2, released 2017-01-22
 --------------------------------------------
 

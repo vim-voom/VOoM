@@ -1,6 +1,6 @@
 " File: voom.vim
-" Last Modified: 2017-01-20
-" Version: 5.2
+" Last Modified: 2017-02-18
+" Version: 5.3
 " Description: VOoM -- two-pane outliner plugin for Python-enabled Vim
 " Website: http://www.vim.org/scripts/script.php?script_id=2657
 " Author: Vlad Irnov (vlad DOT irnov AT gmail DOT com)
@@ -72,15 +72,17 @@ if !exists('s:voom_did_init')
     " {tree : associated body,  ...}
     let s:voom_trees = {}
 
-    " {body : {'tree' : associated tree,
-    "          'snLn' : selected node Tree lnum,
-    "          'MTYPE' : integer indicating the type of markup mode,
-    "               0 -- an fmr mode, all operations are supported
-    "               1 -- special node marks are not supported
-    "               2 -- as 1, in addition levels >1 are not supported
-    "          'mmode' : markup mode,
-    "          'tick' : b:changedtick of Body on Body BufLeave,
-    "          'tick_' : b:changedtick of Body on last Tree update }, {...}, ... }
+    " {body : {
+    "   'tree' : associated tree,
+    "   'snLn' : selected node Tree lnum,
+    "   'MTYPE' : integer indicating the type of markup mode,
+    "        0 -- an fmr mode, all operations are supported
+    "        1 -- special node marks are not supported
+    "        2 -- as 1, in addition Move Right/Left, Add New Headline As Child are not supported
+    "   'mmode' : markup mode,
+    "   'tick' : b:changedtick of Body on Body BufLeave,
+    "   'tick_' : b:changedtick of Body on last Tree update 
+    "         }, {...}, ... }
     let s:voom_bodies = {}
 
     " force one-time outline verification
@@ -92,7 +94,7 @@ if !exists('s:voom_did_init')
     exe s:PYCMD "import voom_vimplugin2657.voom_vim as _VOoM2657"
     exe s:PYCMD "sys.modules['voom_vimplugin2657.voom_vim'].VOOMS = {}"
 
-    let s:voom_did_init = 'v5.2'
+    let s:voom_did_init = 'v5.3'
     lockvar s:voom_did_init
 endif
 
@@ -201,7 +203,7 @@ func! voom#Init(qargs, ...) "{{{2
         if !hasmapto('voom#ToTreeOrBodyWin','n')
             call voom#ErrorMsg("VOoM: Tree lost mappings. Reconfiguring...")
             call voom#TreeConfig()
-            call voom#TreeConfigFt(a:body)
+            call voom#TreeConfigFT(body)
         endif
         if !keepCursor
             call voom#ToBody(body)
@@ -273,6 +275,7 @@ func! voom#TreeSessionLoad() "{{{2
     elseif has_key(s:voom_bodies, body)
         exe 'b'.s:voom_bodies[body].tree
         call voom#TreeConfigWin()
+        call voom#TreeConfigFT(body)
         return
     endif
     " rename Tree (current buffer), if needed, to correct Body bufnr
@@ -871,6 +874,7 @@ func! voom#TreeCreate(body, blnr) "{{{2
     exe s:PYCMD "_VOoM2657.VOOMS[int(vim.eval('a:body'))].tree = int(vim.eval('l:tree'))"
     exe s:PYCMD "_VOoM2657.VOOMS[int(vim.eval('a:body'))].Tree = vim.current.buffer"
 
+    " set folding options here: voom_TreeCreate() needs folding
     call voom#TreeConfig()
     let l:blnShow = -1
     """ Create outline and draw Tree lines.
@@ -880,8 +884,7 @@ func! voom#TreeCreate(body, blnr) "{{{2
     try
         let l:ok = 0
         exe "keepj" s:PYCMD "_VOoM2657.updateTree(int(vim.eval('a:body')), int(vim.eval('l:tree')))"
-        " Draw = mark. Create folding from o marks.
-        " This must be done afer creating outline.
+        " Draw = mark. Create folding from o marks. Must be done afer creating outline and folding.
         " this assigns s:voom_bodies[body].snLn
         " If there is Python error in updateTree(), execution does not stop here if Voomlog is on.
         if l:ok
@@ -905,7 +908,8 @@ func! voom#TreeCreate(body, blnr) "{{{2
             return
         endif
     endtry
-    call voom#TreeConfigFt(a:body)
+    " apply user's window-local options here: voom_TreeCreate() sets fdl
+    call voom#TreeConfigFT(a:body)
 
     """ Position cursor on snLn line. VOoM**voom_notes.txt#id_20110125210844
     keepj normal! gg
@@ -972,51 +976,48 @@ func! voom#TreeConfigWin() "{{{2
 endfunc
 
 
-func! voom#TreeConfigFt(body) "{{{2
-" This is to allow customization via ftplugin.
+func! voom#TreeConfigFT(body) "{{{2
+" Allow customization via ftplugin/voomtree.vim, syntax/voomtree.vim, etc.
     setl ft=voomtree
-    if exists('b:current_syntax')
-        return
-    endif
-" Tree buffer default syntax highlighting. 'set ft=...' removes syntax hi.
-    " first line
+
+" Tree buffer default syntax highlighting. Must be done after'setl ft=voomtree'.
+    if exists('b:current_syntax') | return | endif
+
     syn match Title /\%1l.*/
+    "syn keyword Todo contained TODO XXX FIXME
+    syn keyword Todo TODO XXX FIXME
+    syn match WarningMsg /^[^|]\+|\zs!\+/
 
     let FT = getbufvar(a:body, "&ft")
     if FT==#'text'
-        " organizer nodes: /headline/
+        " organizer nodes: /headline, #headline
         syn match Comment '^[^|]\+|\zs[/#].*' contains=Todo
-        syn keyword Todo TODO XXX FIXME
     elseif FT==#'python'
         syn match Statement /^[^|]\+|\zs\%(def\s\|class\s\)/
         syn match Define /^[^|]\+|\zs@/
-        syn match Comment /^[^|]\+|\zs#.*/ contains=Todo
-        syn keyword Todo contained TODO XXX FIXME
+        syn match Comment /#.*/ contains=Todo
     elseif FT==#'vim'
         syn match Statement /^[^|]\+|\zs\%(fu\%[nction]\>\|def\s\|class\s\)/
-        syn match Comment /^[^|]\+|\zs\%("\|#\).*/ contains=Todo
-        syn keyword Todo contained TODO XXX FIXME
-    elseif FT==#'html' || FT==#'xml'
-        syn match Comment /^[^|]\+|\zs<!.*/ contains=Todo
-        syn keyword Todo contained TODO XXX FIXME
+        syn match Comment /".*/ contains=Todo
+        " treat # as comment: can be embedded Python, Perl, etc
+        syn match Comment /^[^|]\+|\zs#.*/ contains=Todo
     elseif FT==#'tex'
-        syn match Comment /^[^|]\+|\zs%.*/ contains=Todo
-        syn keyword Todo contained TODO XXX FIXME
+        syn match Comment /%.*/ contains=Todo
+    elseif FT==#'html' || FT==#'xml'
+        syn match Comment /<!--.\{-}\%(-->\|$\)/ contains=Todo
     else
-        """ organizer nodes: /headline/
-        "syn match Directory @^[^|]\+|\zs/.*@ contains=Todo
-        """ line comment chars: "  #  //  /*  %  ;  <!--
-        "syn match Comment @^[^|]\+|\zs\%("\|#\|//\|/\*\|%\|<!--\).*@ contains=Todo
-        """ line comment chars with / (organizer nodes) instead of // and /*
-        syn match Comment '^[^|]\+|\zs["#/%;].*' contains=Todo
-        syn keyword Todo TODO XXX FIXME
+        " Organizer nodes: /headline, #headline. Takes adequate care of 'cms' /*%s*/ and #%s.
+        syn match Comment '^[^|]\+|\zs[/#].*' contains=Todo
+        " hi as comment after first part of 'cms' unless it's /*
+        " /*%s*/ is default 'cms' and thus often means nothing
+        let CMS = substitute(getbufvar(a:body, '&cms'), '%s.*', '', '')
+        if CMS !~ '^\s*\%(/\*\|\)\s*$'
+            let CMS = escape(CMS, '*.^$[]/\')
+            exec 'syn match Comment /^[^|]\+|.\{-}\zs' . CMS . '.*/ contains=Todo'
+        endif
     endif
 
-    syn match WarningMsg /^[^|]\+|\zs!\+/
-
-    """ selected node hi, useless with folding
-    "syn match Pmenu /^=.\{-}|\zs.*/
-    "syn match Pmenu /^=.\{-}\ze|/
+    let b:current_syntax = 'voomtree'
 endfunc
 
 
@@ -1025,7 +1026,7 @@ func! voom#TreeBufEnter() "{{{2
 " Update outline if Body changed since last update. Redraw Tree if needed.
     let tree = bufnr('')
     let body = s:voom_trees[tree]
-    if !exists('w:voom_tree') | call voom#TreeConfigWin() | endif
+    if !exists('w:voom_tree') | call voom#TreeConfigWin() | call voom#TreeConfigFT(body) | endif
     if s:voom_bodies[body].tick_==s:voom_bodies[body].tick || &ma || voom#BufNotLoaded(body)
         return
     endif
@@ -1771,7 +1772,7 @@ func! voom#OopInsert(as_child) "{{{3
         return
     endif
     if a:as_child==#'as_child' && s:voom_bodies[body].MTYPE > 1
-        call voom#ErrorMsg('VOoM: headlines with level >1 are not possible in this markup mode')
+        call voom#ErrorMsg('VOoM: operation ''Add New Headline As Child'' is not available in this markup mode')
         return
     endif
 
@@ -1981,7 +1982,7 @@ func! voom#Oop(op, mode) "{{{3
 
     let lz_ = &lz | set lz
     let l:doverif = 1
-    " default bnlShow -1 means no changes were made or Python code failed
+    " bnlShow=-1 means no changes were made, pyOK=0 means Python code failed
     let l:blnShow = -1
     let l:pyOK = 0
 
@@ -2039,11 +2040,6 @@ func! voom#Oop(op, mode) "{{{3
 
     elseif a:op==#'right' " {{{
         if ln1==2 | let &lz=lz_ | return | endif
-        if s:voom_bodies[body].MTYPE > 1
-            call voom#ErrorMsg('VOoM: headlines with level >1 are not possible in this markup mode')
-            let &lz=lz_
-            return
-        endif
 
         if voom#ToBody(body) < 0 | let &lz=lz_ | return | endif
         if voom#BodyCheckTicks(body) < 0 | let &lz=lz_ | return | endif
@@ -2057,13 +2053,11 @@ func! voom#Oop(op, mode) "{{{3
         if l:blnShow > 0
             let s:voom_bodies[body].snLn = ln1
             call voom#OopShowTree(ln1, ln2, a:mode)
-        else
-            call setbufvar(body, '&fdm', b_fdm)
         endif
         " }}}
 
     elseif a:op==#'left' " {{{
-        if ln1==2 | let &lz=lz_ | return | endif
+        "if ln1==2 | let &lz=lz_ | return | endif
 
         if voom#ToBody(body) < 0 | let &lz=lz_ | return | endif
         if voom#BodyCheckTicks(body) < 0 | let &lz=lz_ | return | endif
@@ -2077,8 +2071,6 @@ func! voom#Oop(op, mode) "{{{3
         if l:blnShow > 0
             let s:voom_bodies[body].snLn = ln1
             call voom#OopShowTree(ln1, ln2, a:mode)
-        else
-            call setbufvar(body, '&fdm', b_fdm)
         endif
         " }}}
 
@@ -2127,6 +2119,9 @@ func! voom#Oop(op, mode) "{{{3
     endif
 
     if l:pyOK != 1
+        if a:op==#'right' || a:op==#'left'
+            call setbufvar(body, '&fdm', b_fdm)
+        endif
         call voom#OopPyNotOK(body, bbTick, a:op)
     endif
 endfunc
@@ -2808,14 +2803,40 @@ func! voom#LogConfig() "{{{2
     augroup END
     setl cul nocuc list wrap
     setl bufhidden=wipe
-    setl ft=voomlog
+    call voom#LogConfigFT()
     setl noro ma ff=unix
     setl nobuflisted buftype=nofile noswapfile
-    call voom#LogSyntax()
     exe s:PYCMD "_voom2657_py_sys_stdout = sys.stdout"
     exe s:PYCMD "_voom2657_py_sys_stderr = sys.stderr"
     exe s:PYCMD "sys.stdout = sys.stderr = _VOoM2657.LogBufferClass()"
     exe s:PYCMD "if 'pydoc' in sys.modules: del sys.modules['pydoc']"
+endfunc
+
+
+func! voom#LogConfigFT() "{{{2
+" Allow customization via ftplugin/voomlog.vim, syntax/voomlog.vim, etc.
+    setl ft=voomlog
+
+" Log buffer default syntax highlighting. Must be done after 'setl ft=voomlog'.
+    if exists('b:current_syntax') | return | endif
+    " Python tracebacks
+    syn match Error /^Traceback (most recent call last):/
+    syn match Error /^\u\h*Error/
+    syn match Error /^vim\.error/
+    syn region WarningMsg start="^Traceback (most recent call last):" end="\%(^\u\h*Error.*\)\|\%(^\s*$\)\|\%(^vim\.error\)" contains=Error keepend
+
+    "Vim exceptions
+    syn match Error /^Vim.*:E\d\+:.*/
+
+    " VOoM messages
+    syn match Error /^ERROR: .*/
+    syn match Error /^EXCEPTION: .*/
+    syn match PreProc /^---end of \w\+ script.*---$/
+
+    " -> UNL separator
+    syn match Title / -> /
+
+    let b:current_syntax = 'voomlog'
 endfunc
 
 
@@ -2834,29 +2855,6 @@ func! voom#LogBufUnload() "{{{2
         " E937 occurs in Vim 8.0 (Patch 7.4.2324), wipeout still happens
     endtry
     let s:voom_logbnr = 0
-endfunc
-
-
-func! voom#LogSyntax() "{{{2
-" Log buffer syntax highlighting.
-
-    " Python tracebacks
-    syn match Error /^Traceback (most recent call last):/
-    syn match Error /^\u\h*Error/
-    syn match Error /^vim\.error/
-    syn region WarningMsg start="^Traceback (most recent call last):" end="\%(^\u\h*Error.*\)\|\%(^\s*$\)\|\%(^vim\.error\)" contains=Error keepend
-
-    "Vim exceptions
-    syn match Error /^Vim.*:E\d\+:.*/
-
-    " VOoM messages
-    syn match Error /^ERROR: .*/
-    syn match Error /^EXCEPTION: .*/
-    syn match PreProc /^---end of \w\+ script.*---$/
-
-    " -> UNL separator
-    syn match Title / -> /
-
 endfunc
 
 
@@ -2951,12 +2949,12 @@ func! voom#GetVoomRange(lnum, withSubnodes) "{{{2
 endfunc
 
 
-func! voom#GetBuffRange(ln1, ln2) "{{{2
+func! voom#GetBufRange(ln1, ln2) "{{{2
     let bnr = bufnr('')
     if has_key(s:voom_trees, bnr)
         let [bufType, body, tree] = ['Tree', s:voom_trees[bnr], bnr]
         if voom#BufNotLoaded(body) | return ['Tree',-1,-1,-1] | endif
-        exe s:PYCMD "_VOoM2657.voom_GetBuffRange()"
+        exe s:PYCMD "_VOoM2657.voom_GetBufRange()"
         return [bufType, body, l:bln1, l:bln2]
     elseif has_key(s:voom_bodies, bnr)
         return ['Body',bnr,a:ln1,a:ln2]
