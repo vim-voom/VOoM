@@ -60,6 +60,7 @@ def hook_makeOutline(VO, blines):
 
     L2 = blines[0].rstrip() # first Body line
     isHead = False
+    isInCodeBlock = False
     for i in xrange(Z):
         L1 = L2
         j = i+1
@@ -69,6 +70,11 @@ def hook_makeOutline(VO, blines):
             L2 = ''
 
         if not L1:
+            continue
+        
+        if L1.strip().startswith('```'):
+            isInCodeBlock = not isInCodeBlock
+        if isInCodeBlock:
             continue
 
         if L2 and (L2[0] in ADS_LEVELS) and not L2.lstrip(L2[0]):
