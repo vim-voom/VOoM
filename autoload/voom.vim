@@ -965,10 +965,14 @@ endfunc
 
 func! voom#TreeConfigWin() "{{{2
 " Tree window-local options.
-    setl foldenable
-    setl foldtext=getline(v:foldstart).'\ \ \ /'.(v:foldend-v:foldstart)
-    setl foldmethod=expr
-    setl foldexpr=voom#TreeFoldexpr(v:lnum)
+    if exists("g:voom_nofoldenable") && (g:voom_nofoldenable == 1)
+        setl nofoldenable
+    else
+        setl foldenable
+        setl foldtext=getline(v:foldstart).'\ \ \ /'.(v:foldend-v:foldstart)
+        setl foldmethod=expr
+        setl foldexpr=voom#TreeFoldexpr(v:lnum)
+    endif
     setl cul nocuc nowrap nolist
     "setl winfixheight
     setl winfixwidth

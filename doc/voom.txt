@@ -908,6 +908,17 @@ g:voom_rstrip_chars_{filetype}   ~
         let g:voom_rstrip_chars_text = " \t"
         let g:voom_rstrip_chars_help = " \t"
 
+g:voom_nofoldenable   ~
+    If set to 1, the Tree buffer will be initialized with `set nofoldenable`.
+    Default is 0.
+    Usage:
+        # let g:voom_nofoldenable = 0  # Default. (Do set foldenable)
+        let g:voom_nofoldenable   = 1  # (Set nofoldenable)
+    After changing g:voom_nofoldenable, the Tree buffer must be closed
+    and reopened:
+        <c-w>h
+        :q
+        :Voom
 
 g:voom_user_command   ~
     This option allows to execute an arbitrary user-defined command when
