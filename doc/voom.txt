@@ -275,7 +275,7 @@ Create the correct outline again with the command ":Voom".
         http://docutils.sourceforge.net/docs/ref/rst/restructuredtext.txt
         Open it Vim and execute
             :Voom rest
-        Download Panoc user guide from
+        Download Pandoc user guide from
         https://github.com/jgm/pandoc/blob/master/MANUAL.txt
         Open it Vim and execute
             :Voom pandoc
